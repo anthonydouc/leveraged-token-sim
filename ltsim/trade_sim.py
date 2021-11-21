@@ -4,21 +4,22 @@ import numpy as np
 def sim_swap(delta_x, delta_y, pool_x, pool_y, perc_fee):
     """
     Computes the expected receive, spread and commision amounts for 
-    Terra Swap style pools (constant product).
+    Terra Swap style pools (constant product). Based on 
+    https://docs.terraswap.io/docs/introduction/mechanism/
     
     
     Parameters
     ----------
-    delta_x : TYPE
-        DESCRIPTION.
-    delta_y : TYPE
-        DESCRIPTION.
-    pool_x : TYPE
-        DESCRIPTION.
-    pool_y : TYPE
-        DESCRIPTION.
-    perc_fee : TYPE
-        DESCRIPTION.
+    delta_x : float
+        Amount of token x being offered.
+    delta_y : float
+        Amount of token y being offered.
+    pool_x : float
+        Balance (number of tokens) for token x.
+    pool_y : float
+        Balance (number of tokens) for token y.
+    perc_fee : float
+        Percentage fee charged by the exchange for executing a swap.
 
     """
     if delta_x > 0 :
@@ -144,66 +145,3 @@ def execute_trades(trade_vol, max_trade, max_slippage, trade_delay,
         received = 1 * received_tokens #TODO: get UST prices?
 
     return direction * received.sum()
-
-if __name__ == '__main__':
-        
-    # trade_vol = 75000 * 10
-    
-    # max_trade = 75000
-    
-    # max_slippage = 2
-    
-    # trade_delay = 1
-    
-    # arb_effectiveness = 0.9
-    
-    # arb_time = 1
-    
-    # pool_liquidity = {'pool_x_i': 30160053 , 'pool_y_i':659723}
-    
-    # token_price = 30160053 / 659723
-    
-    # r = execute_trades(trade_vol, max_trade, max_slippage, trade_delay,
-    #                    arb_effectiveness, arb_time, pool_liquidity, token_price)
-
-
-    perc_fee = 0.3 / 100
-    
-    max_slippage = 10
-    
-    time_delay = 0
-    
-    arb_effectiveness = 1
-    
-    arb_time = 1
-    
-    # LUNA trade 
-    # https://finder.terra.money/mainnet/tx/52088AC08124630A7AD5C1A966697E8A6125210B36A4AE8C9A35AB9BF0F45C80
-    pool_x, pool_y = 30123576.064800,  691626.375367
-    
-    delta_x = 940
-
-    delta_y = delta_x * (pool_y / pool_x)
-    
-    res = sim_swap(delta_x, delta_y, pool_x, pool_y, perc_fee)
-
-    # MIR trade
-    # https://finder.terra.money/mainnet/tx/68B71489AF3B05EB679221A367633769F1E95B553FC5ABB237DCC4C572E49EDB
-    pool_x, pool_y = 30307424.731656,  10982636.155309
-    
-    delta_x = 14000
-
-    delta_y = delta_x * (pool_y / pool_x)
-    
-    res = sim_swap(delta_x, delta_y, pool_x, pool_y, perc_fee)
-    
-    # ANC trade
-    # https://finder.terra.money/mainnet/tx/028821BAB5DE9E83C67DB908A4E1714F9A382517B079E6F8AA9D1749952D63BB
-    pool_x, pool_y = 146440951.902936,  46345672.171992
-    
-    delta_x = 2161.613117
-
-    delta_y = delta_x * (pool_y / pool_x)
-    
-    res = sim_swap(delta_x, delta_y, pool_x, pool_y, perc_fee)
-    

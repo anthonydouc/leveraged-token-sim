@@ -127,6 +127,12 @@ def read_liquidity_from_api():
     
     pool_data = (pool_data.set_index(['DATE', 'CURRENCY','POOL_NAME'])
                  .unstack(1)['BALANCE'].reset_index())
+    
+    pool_data['pool_x_i'] = (pool_data.groupby('POOL_NAME')['pool_x_i']
+                             .fillna(method='ffill'))
+    
+    pool_data['pool_y_i'] = (pool_data.groupby('POOL_NAME')['pool_y_i']
+                             .fillna(method='ffill'))
 
     return pool_data
 
@@ -143,11 +149,25 @@ def get_pool_liquidity(pool_data, pool, min_date=None, max_date=None):
     if max_date is not None:
         pool_data = pool_data[pool_data['DATE'] <= max_date]
 
-    pool_data['pool_x_i'] = (pool_data.groupby('POOL_NAME')['pool_x_i']
-                             .fillna(method='ffill'))
-    
-    pool_data['pool_y_i'] = (pool_data.groupby('POOL_NAME')['pool_y_i']
-                             .fillna(method='ffill'))
-
-
     return pool_data[['DATE', 'pool_x_i','pool_y_i']]
+
+
+def get_model_data(token, min_date=None, max_date=None):
+    
+    token_pools = {'LUNA': 'LUNA-UST',
+                   'MIR': 'MIR-UST',
+                   'ANC': 'ANC-UST'}
+    
+    pool = token_pools[token]
+    
+    all_token_prices = read_prices_from_api()
+    
+    token_prices = get_token_prices(all_token_prices, token, min_date, max_date)
+    
+    min_date, max_date = all_token_prices['DAY_DATE'].min(), all_token_prices['DAY_DATE'].max()
+    
+    all_pool_liquidity = read_liquidity_from_api()
+    
+    pool_liquidity = get_pool_liquidity(all_pool_liquidity, pool, min_date, max_date)
+    
+    return token_prices, all_token_prices, pool_liquidity, all_pool_liquidity

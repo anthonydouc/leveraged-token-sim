@@ -111,7 +111,7 @@ def leveraged_token_model(price_data, target_leverage, min_leverage,
 
         outside_lev_range = (leverage[t] < min_leverage) | (leverage[t] > max_leverage)
 
-        # need to now calculate duration out of bounds...
+        # Continuous duration that leverage bounds are exceeded for
         if outside_lev_range:
             exceedance_time[t] = 1 + exceedance_time[t-1]
         else:
@@ -123,7 +123,8 @@ def leveraged_token_model(price_data, target_leverage, min_leverage,
         periodic_rebal_allowed = is_periodic_rebal_allowed(t, last_rebalanced,
                                                            rebalance_frequency)
         
-        rebal_allowed = ((leverage[t] != target_leverage) and (no_tokens[t] > 0)
+        rebal_allowed = ((leverage[t] != target_leverage)
+                         and (no_tokens[t] > 0)
                          and (emergancy_rebal_allowed or periodic_rebal_allowed))
 
         if rebal_allowed:
@@ -153,12 +154,13 @@ def leveraged_token_model(price_data, target_leverage, min_leverage,
                                                  price[t],
                                                  trading_fee / 100)
 
+        # Adjust debt and underlying token positions based on rebalancing
+        # amount
         borrowed[t:] += rebalance_amount[t] / no_tokens[t]
 
         n_underlying[t:] += rebalance_amount[t] / no_tokens[t] / price[t]
 
-        # Factor in borrowing costs
-        # (If borrowing rate is negative, assume borrowed amount decreases)
+        # Debt interest accural
         borrowed[t] *= (1 + borrow_rate / 100 / 365 / 24)
 
     actual_value = (n_underlying * price - borrowed)

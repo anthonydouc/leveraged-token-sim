@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-from ltsim.data import (read_prices_from_api, get_token_prices,
-                        read_liquidity_from_api, get_pool_liquidity)
+from ltsim.data import get_model_data
                   
 from ltsim.model import leveraged_token_model
 
@@ -33,22 +32,24 @@ trade_params_emergancy = (1e9, 4, 1)
 
 token = 'LUNA'
 
-historical_price_data = read_prices_from_api()
-
-min_date, max_date = historical_price_data['DAY_DATE'].min(), historical_price_data['DAY_DATE'].max()
-
-price_data = get_token_prices(historical_price_data, token, min_date, max_date)
-
-pool_liquidity = read_liquidity_from_api()
-
-pool_liquidity = get_pool_liquidity(pool_liquidity, 'LUNA-UST', min_date, max_date)
+token_prices, all_token_prices, pool_liquidity, all_pool_liquidity = get_model_data('LUNA')
 
 arb_params = (0.9, 1)
 
-data = leveraged_token_model(price_data, target_leverage, min_leverage, 
-                             max_leverage, congestion_time, 
-                             rebalance_frequency, recentering_speed,
-                             trade_params_periodic, trade_params_emergancy,
-                             borrow_rate, liq_thresh, liq_premium,
-                             no_tokens_start, no_tokens_growth, 
-                             trade_fee, arb_params, pool_liquidity)
+data = leveraged_token_model(token_prices,
+                             target_leverage,
+                             min_leverage, 
+                             max_leverage,
+                             congestion_time, 
+                             rebalance_frequency,
+                             recentering_speed,
+                             trade_params_periodic,
+                             trade_params_emergancy,
+                             borrow_rate,
+                             liq_thresh,
+                             liq_premium,
+                             no_tokens_start,
+                             no_tokens_growth, 
+                             trade_fee,
+                             arb_params,
+                             pool_liquidity)
