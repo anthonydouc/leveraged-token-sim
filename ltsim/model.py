@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from trade_sim import execute_trades
+from .trade_sim import execute_trades
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -80,9 +80,18 @@ def leveraged_token_model(price_data, target_leverage, min_leverage,
 
     # rebalance amount ($) per leveraged token
     rebalance_amount = np.zeros(nt)
+    
+    # boolean variable tracking if emergency rebalance was executed
+    emergency_rebalances = np.zeros(nt)
+    
+    # boolean variable tracking if periodic rebalance was executed
+    periodic_rebalances = np.zeros(nt)
 
     # cummulative duration of time where leverage remains out of bounds
     exceedance_time = np.zeros(nt)
+    
+    # amount liquidated
+    liquidation_amount = np.zeros(nt)
 
     n_underlying[0:] = target_leverage
 
@@ -94,7 +103,8 @@ def leveraged_token_model(price_data, target_leverage, min_leverage,
         balance_before = n_underlying[t] * price[t] - borrowed[t]
         # liquidation occurs when asset_value / borrowed < liquidation_threshold
         if (n_underlying[t] * price[t] / borrowed[t]) <= liq_thresh:
-            balance_after = balance_before * (1 - liq_fee)
+            liquidation_amount[t] = balance_before * liq_fee
+            balance_after = balance_before - liquidation_amount[t]
             if balance_after <= 0:
                 # all issued leveraged tokens are now worth 0 and removed
                 n_underlying[t] = 0
@@ -139,9 +149,11 @@ def leveraged_token_model(price_data, target_leverage, min_leverage,
 
             if emergancy_rebal_allowed:
                 trade_params = trade_params_emergancy
+                emergency_rebalances[t] = 1
 
             elif periodic_rebal_allowed:
                 trade_params = trade_params_periodic
+                periodic_rebalances[t] = 1
                 last_rebalanced = t
 
             # TODO: maybe change delta borrow to tokens as opposed to USD.
@@ -190,6 +202,9 @@ def leveraged_token_model(price_data, target_leverage, min_leverage,
                          'total_value': n_underlying * price,
                          'daily_return': daily_return,
                          'cummulative_return': cummulative_return,
+                         'liquidation_amount': liquidation_amount,
+                         'emergency_rebalance': emergency_rebalances,
+                         'periodic_rebalance': periodic_rebalances,
                          'min_leverage_arr': min_leverage_arr,
                          'max_leverage_arr': max_leverage_arr})
     return data
