@@ -8,6 +8,13 @@ from .trade_sim import execute_trades
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
+def calc_drawdown(data):
+    
+    data = pd.Series(data)
+    
+    cummax_data = data.cummax()
+    
+    return (data - cummax_data) / data
 
 def calc_n_tokens_linear(n_int, n_grad, nt):
     return np.linspace(0, nt-1, nt) * n_grad + n_int
@@ -56,9 +63,9 @@ def leveraged_token_model(price_data, target_leverage, min_leverage,
 
     """
 
-    price = price_data['AVG_DAILY_PRICE'].values
+    price = price_data['AVG_PRICE'].values
 
-    dates = price_data['DAY_DATE'].values
+    dates = price_data['DATE'].values
 
     nt = len(price)
 
@@ -75,9 +82,6 @@ def leveraged_token_model(price_data, target_leverage, min_leverage,
     # actual leverage ratio per leveraged token
     leverage = np.zeros(nt)
 
-    # rebalancing trading fees ($) for all leveraged tokens
-    trading_fees = np.zeros(nt)
-
     # rebalance amount ($) per leveraged token
     rebalance_amount = np.zeros(nt)
     
@@ -90,6 +94,9 @@ def leveraged_token_model(price_data, target_leverage, min_leverage,
     # cummulative duration of time where leverage remains out of bounds
     exceedance_time = np.zeros(nt)
     
+    # loan to value ratio
+    ltv = np.zeros(nt)
+    
     # amount liquidated
     liquidation_amount = np.zeros(nt)
 
@@ -100,9 +107,15 @@ def leveraged_token_model(price_data, target_leverage, min_leverage,
     last_rebalanced = - 100
 
     for t in range(nt):
+        
+        if borrowed[t] > 0:
+            ltv[t] = n_underlying[t] * price[t] / borrowed[t]
+        else:
+            ltv[t] = np.nan
+        
         balance_before = n_underlying[t] * price[t] - borrowed[t]
         # liquidation occurs when asset_value / borrowed < liquidation_threshold
-        if (n_underlying[t] * price[t] / borrowed[t]) <= liq_thresh:
+        if ltv[t] <= liq_thresh:
             liquidation_amount[t] = balance_before * liq_fee
             balance_after = balance_before - liquidation_amount[t]
             if balance_after <= 0:
@@ -181,27 +194,47 @@ def leveraged_token_model(price_data, target_leverage, min_leverage,
 
     max_leverage_arr = np.zeros(nt) + max_leverage
 
+    # hour on hour change in leveraged token value 
     daily_return = np.zeros(len(actual_value))
+    
+    # percentage daily return
+    daily_return_perc = np.zeros(len(actual_value))
 
+    # cummulative change in leveraged token value
     cummulative_return = np.zeros(len(actual_value))
+    
+    # percentage cummulative change
+    cummulative_return_perc = np.zeros(len(actual_value))
 
-    daily_return[1:] = (actual_value[1:]  - actual_value[:-1]) / actual_value[:-1]
+    daily_return[1:] = (actual_value[1:]  - actual_value[:-1])
+    
+    daily_return_perc[1:] = (actual_value[1:]  - actual_value[:-1]) / actual_value[:-1]
 
-    cummulative_return[1:] = (actual_value[1:]  - actual_value[0]) / actual_value[0]
+    cummulative_return[1:] = (actual_value[1:]  - actual_value[0])
+    
+    cummulative_return_perc[1:] = (actual_value[1:]  - actual_value[0]) / actual_value[0]
 
+    drawdown_asset = calc_drawdown(price)
+    
+    drawdown_token = calc_drawdown(actual_value)
+    
     data = pd.DataFrame({'date': dates,
                          'asset_price': price,
-                         'actual_value': actual_value - trading_fees,
+                         'actual_value': actual_value,
+                         'drawdown_asset': drawdown_asset,
+                         'drawdown_token': drawdown_token,
                          'actual_leverage': leverage,
                          'amount_borrowed': borrowed,
-                         'total_nav':no_tokens * n_underlying * price ,
                          'total_borrowed': no_tokens * borrowed,
                          'total_trade': rebalance_amount,
-                         'no_issued': no_tokens,
                          'tokens': n_underlying,
                          'total_value': n_underlying * price,
+                         'total_nav': no_tokens * n_underlying * price,
                          'daily_return': daily_return,
+                         'daily_return_perc': daily_return_perc,
                          'cummulative_return': cummulative_return,
+                         'cummulative_return_perc': cummulative_return_perc,
+                         'loan_to_value_ratio': ltv,
                          'liquidation_amount': liquidation_amount,
                          'emergency_rebalance': emergency_rebalances,
                          'periodic_rebalance': periodic_rebalances,

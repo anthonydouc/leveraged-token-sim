@@ -10,6 +10,10 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 data_dir = os.path.join(dir_path, 'data')
 
+token_pools = {'LUNA': 'LUNA-UST',
+               'MIR': 'MIR-UST',
+               'ANC': 'ANC-UST'}
+    
 def read_data_from_api(api_url, data_file='data'):
 
     today = datetime.datetime.utcnow().strftime('%m-%d')
@@ -58,7 +62,7 @@ def read_prices_from_api():
     
     price_data = read_data_from_api(url, 'token_prices')
 
-    price_data['DAY_DATE'] = pd.to_datetime(price_data['DAY_DATE'])
+    price_data['DATE'] = pd.to_datetime(price_data['DATE'])
     
     return price_data
 
@@ -72,10 +76,10 @@ def get_token_prices(price_data, token, min_date=None, max_date=None):
     price_data = price_data[price_data['SYMBOL'] == token]
     
     if min_date is not None:
-        price_data = price_data[price_data['DAY_DATE'] >= min_date]
+        price_data = price_data[price_data['DATE'] >= min_date]
     
     if max_date is not None:
-        price_data = price_data[price_data['DAY_DATE'] <= max_date]
+        price_data = price_data[price_data['DATE'] <= max_date]
     
     return price_data
 
@@ -152,22 +156,24 @@ def get_pool_liquidity(pool_data, pool, min_date=None, max_date=None):
     return pool_data[['DATE', 'pool_x_i','pool_y_i']]
 
 
-def get_model_data(token, min_date=None, max_date=None):
-    
-    token_pools = {'LUNA': 'LUNA-UST',
-                   'MIR': 'MIR-UST',
-                   'ANC': 'ANC-UST'}
+def get_all_model_data(token, min_date=None, max_date=None):
+        
+    all_token_prices = read_prices_from_api()
+        
+    all_pool_liquidity = read_liquidity_from_api()
+       
+    return all_token_prices, all_pool_liquidity
+
+
+def get_model_data(all_token_prices, all_pool_liquidity, token, min_date=None, 
+                   max_date=None):
     
     pool = token_pools[token]
-    
-    all_token_prices = read_prices_from_api()
-    
+
     token_prices = get_token_prices(all_token_prices, token, min_date, max_date)
-    
-    min_date, max_date = all_token_prices['DAY_DATE'].min(), all_token_prices['DAY_DATE'].max()
-    
-    all_pool_liquidity = read_liquidity_from_api()
-    
+
+    min_date, max_date = all_token_prices['DATE'].min(), all_token_prices['DATE'].max()
+
     pool_liquidity = get_pool_liquidity(all_pool_liquidity, pool, min_date, max_date)
     
-    return token_prices, all_token_prices, pool_liquidity, all_pool_liquidity
+    return token_prices, pool_liquidity
