@@ -28,7 +28,7 @@ def sim_swap(delta_x, delta_y, pool_x, pool_y, perc_fee):
     elif delta_x < 0 :
         ask = abs(delta_x)
         out = delta_y * pool_x / (delta_y + pool_y)
-    received  = out  * (1 - perc_fee)
+    received  = out  * (1 - perc_fee / 100)
     return received, 100 * (ask - out) / ask
     
 def sim_trades(delta_x, max_slippage, time_delay, arb_effectiveness, arb_time, 
@@ -75,7 +75,7 @@ def sim_trades(delta_x, max_slippage, time_delay, arb_effectiveness, arb_time,
 
         if perc_spread < max_slippage:
     
-            arb_offset = (1 - arb_effectiveness) * max(1, (time_delay / arb_time))
+            arb_offset = (1 - arb_effectiveness / 100) * max(1, (time_delay / arb_time))
             
             pool_x[t:] += delta_x[t]  * arb_offset
         

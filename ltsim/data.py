@@ -156,7 +156,7 @@ def get_pool_liquidity(pool_data, pool, min_date=None, max_date=None):
     return pool_data[['DATE', 'pool_x_i','pool_y_i']]
 
 
-def get_all_model_data(token, min_date=None, max_date=None):
+def get_all_model_data(min_date=None, max_date=None):
         
     all_token_prices = read_prices_from_api()
         

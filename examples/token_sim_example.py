@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from ltsim.data import get_model_data
+from ltsim.data import get_all_model_data, get_model_data
                   
 from ltsim.model import leveraged_token_model
 
@@ -32,11 +32,14 @@ trade_params_emergancy = (1e9, 4, 1)
 
 token = 'LUNA'
 
-token_prices, all_token_prices, pool_liquidity, all_pool_liquidity = get_model_data('LUNA')
+all_price_data, all_pool_liquidity = get_all_model_data()
 
+price_data, pool_liquidity = get_model_data(all_price_data, 
+                                            all_pool_liquidity,
+                                            token) 
 arb_params = (0.9, 1)
 
-data = leveraged_token_model(token_prices,
+data = leveraged_token_model(price_data,
                              target_leverage,
                              min_leverage, 
                              max_leverage,

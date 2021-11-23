@@ -32,28 +32,49 @@ def calc_rebal_lev(leverage, target_leverage, recentering_speed,
 def is_periodic_rebal_allowed(t, last_rebalanced, rebalance_frequency):
     return t >= last_rebalanced + rebalance_frequency
 
-def leveraged_token_model(price_data, target_leverage, min_leverage,
+def leveraged_token_model(price_data, pool_liquidity_data,
+                          target_leverage, min_leverage,
                           max_leverage, congestion_time,
                           rebalance_frequency, recentering_speed,
                           trade_params_periodic, trade_params_emergancy,
-                          borrow_rate, liq_thresh,
-                          liq_fee, no_tokens_start,
-                          no_tokens_growth, trading_fee,
-                          arb_params, pool_liquidity_data):
+                          borrow_rate, liq_thresh, liq_premium,
+                          n_tokens_start, trading_fee, arb_params):
     """
+    
+
     Parameters
     ----------
-    token : str
+    price_data : TYPE
         DESCRIPTION.
-    target_leverage : float
+    pool_liquidity_data : TYPE
         DESCRIPTION.
-    min_leverage : float
+    target_leverage : TYPE
         DESCRIPTION.
-    max_leverage : float
+    min_leverage : TYPE
         DESCRIPTION.
-    rebalance_frequency : float
+    max_leverage : TYPE
         DESCRIPTION.
-    recentering_speed : float
+    congestion_time : TYPE
+        DESCRIPTION.
+    rebalance_frequency : TYPE
+        DESCRIPTION.
+    recentering_speed : TYPE
+        DESCRIPTION.
+    trade_params_periodic : TYPE
+        DESCRIPTION.
+    trade_params_emergancy : TYPE
+        DESCRIPTION.
+    borrow_rate : TYPE
+        DESCRIPTION.
+    liq_thresh : TYPE
+        DESCRIPTION.
+    liq_premium : TYPE
+        DESCRIPTION.
+    n_tokens_start : TYPE
+        DESCRIPTION.
+    trading_fee : TYPE
+        DESCRIPTION.
+    arb_params : TYPE
         DESCRIPTION.
 
     Returns
@@ -62,7 +83,6 @@ def leveraged_token_model(price_data, target_leverage, min_leverage,
         DESCRIPTION.
 
     """
-
     price = price_data['AVG_PRICE'].values
 
     dates = price_data['DATE'].values
@@ -71,7 +91,7 @@ def leveraged_token_model(price_data, target_leverage, min_leverage,
 
     # total (net) number of leveraged tokens issued over time
     # equal to expected cummulative (subscriptions - redemptions)
-    no_tokens = calc_n_tokens_linear(no_tokens_start, no_tokens_growth, nt)
+    n_tokens = calc_n_tokens_linear(n_tokens_start, 0, nt)
 
     # number of underlying tokens per leveraged token
     n_underlying = np.zeros(nt)
@@ -82,7 +102,10 @@ def leveraged_token_model(price_data, target_leverage, min_leverage,
     # actual leverage ratio per leveraged token
     leverage = np.zeros(nt)
 
-    # rebalance amount ($) per leveraged token
+    # target rebalance amount ($) per leveraged token
+    target_rebalance_amount = np.zeros(nt)
+    
+    # actual rebalance amount ($) per leveraged token
     rebalance_amount = np.zeros(nt)
     
     # boolean variable tracking if emergency rebalance was executed
@@ -113,11 +136,18 @@ def leveraged_token_model(price_data, target_leverage, min_leverage,
         else:
             ltv[t] = np.nan
         
-        balance_before = n_underlying[t] * price[t] - borrowed[t]
         # liquidation occurs when asset_value / borrowed < liquidation_threshold
         if ltv[t] <= liq_thresh:
-            liquidation_amount[t] = balance_before * liq_fee
+            
+            # balance before liquidation
+            balance_before = n_underlying[t] * price[t] - borrowed[t]
+            
+            # premium amount claimed by liquidators 
+            liquidation_amount[t] = balance_before * liq_premium
+            
+            # remaining balance after liquidation
             balance_after = balance_before - liquidation_amount[t]
+            
             if balance_after <= 0:
                 # all issued leveraged tokens are now worth 0 and removed
                 n_underlying[t] = 0
@@ -147,7 +177,7 @@ def leveraged_token_model(price_data, target_leverage, min_leverage,
                                                            rebalance_frequency)
         
         rebal_allowed = ((leverage[t] != target_leverage)
-                         and (no_tokens[t] > 0)
+                         and (n_tokens[t] > 0)
                          and (emergancy_rebal_allowed or periodic_rebal_allowed))
 
         if rebal_allowed:
@@ -172,68 +202,74 @@ def leveraged_token_model(price_data, target_leverage, min_leverage,
             # TODO: maybe change delta borrow to tokens as opposed to USD.
             pool_liquidity = pool_liquidity_data.iloc[t][['pool_x_i','pool_y_i']].to_dict()
 
-            rebalance_amount[t] = execute_trades(no_tokens[t] * delta_borrow,
+            target_rebalance_amount[t] = n_tokens[t] * delta_borrow
+            
+            rebalance_amount[t] = execute_trades(n_tokens[t] * delta_borrow,
                                                  *trade_params,
                                                  *arb_params,
                                                  pool_liquidity,
                                                  price[t],
-                                                 trading_fee / 100)
+                                                 trading_fee)
 
         # Adjust debt and underlying token positions based on rebalancing
         # amount
-        borrowed[t:] += rebalance_amount[t] / no_tokens[t]
+        borrowed[t:] += rebalance_amount[t] / n_tokens[t]
 
-        n_underlying[t:] += rebalance_amount[t] / no_tokens[t] / price[t]
+        n_underlying[t:] += rebalance_amount[t] / n_tokens[t] / price[t]
 
         # Debt interest accural
         borrowed[t] *= (1 + borrow_rate / 100 / 365 / 24)
 
-    actual_value = (n_underlying * price - borrowed)
+    # hourly value of the leveraged token
+    lt_value = (n_underlying * price - borrowed)
+    
+    # running drawdown for underlying token price
+    drawdown_underlying = calc_drawdown(price)
+    
+    # running drawdown for leveraged token value
+    drawdown_lt = calc_drawdown(lt_value)
 
     min_leverage_arr = np.zeros(nt) + min_leverage
 
     max_leverage_arr = np.zeros(nt) + max_leverage
 
     # hour on hour change in leveraged token value 
-    daily_return = np.zeros(len(actual_value))
+    daily_return = np.zeros(len(lt_value))
     
     # percentage daily return
-    daily_return_perc = np.zeros(len(actual_value))
+    daily_return_perc = np.zeros(len(lt_value))
 
     # cummulative change in leveraged token value
-    cummulative_return = np.zeros(len(actual_value))
+    cummulative_return = np.zeros(len(lt_value))
     
     # percentage cummulative change
-    cummulative_return_perc = np.zeros(len(actual_value))
+    cummulative_return_perc = np.zeros(len(lt_value))
 
-    daily_return[1:] = (actual_value[1:]  - actual_value[:-1])
+    daily_return[1:] = (lt_value[1:] - lt_value[:-1])
     
-    daily_return_perc[1:] = (actual_value[1:]  - actual_value[:-1]) / actual_value[:-1]
+    daily_return_perc[1:] = (lt_value[1:] - lt_value[:-1]) / lt_value[:-1]
 
-    cummulative_return[1:] = (actual_value[1:]  - actual_value[0])
+    cummulative_return[1:] = (lt_value[1:] - lt_value[0])
     
-    cummulative_return_perc[1:] = (actual_value[1:]  - actual_value[0]) / actual_value[0]
+    cummulative_return_perc[1:] = (lt_value[1:] - lt_value[0]) / lt_value[0]
 
-    drawdown_asset = calc_drawdown(price)
-    
-    drawdown_token = calc_drawdown(actual_value)
-    
     data = pd.DataFrame({'date': dates,
-                         'asset_price': price,
-                         'actual_value': actual_value,
-                         'drawdown_asset': drawdown_asset,
-                         'drawdown_token': drawdown_token,
-                         'actual_leverage': leverage,
-                         'amount_borrowed': borrowed,
-                         'total_borrowed': no_tokens * borrowed,
-                         'total_trade': rebalance_amount,
-                         'tokens': n_underlying,
-                         'total_value': n_underlying * price,
-                         'total_nav': no_tokens * n_underlying * price,
+                         'underlying_token_price': price,
+                         'leveraged_token_value': lt_value,
+                         'drawdown_underlying': drawdown_underlying,
+                         'drawdown_leveraged': drawdown_lt,
+                         'n_tokens_per_lt': n_underlying,
+                         'value_per_lt': n_underlying * price,
+                         'debt_per_lt': borrowed,
+                         'leverage': leverage,
+                         'total_value': n_tokens * n_underlying * price,
+                         'total_debt': n_tokens * borrowed,
                          'daily_return': daily_return,
                          'daily_return_perc': daily_return_perc,
                          'cummulative_return': cummulative_return,
                          'cummulative_return_perc': cummulative_return_perc,
+                         'target_rebalance_amount': target_rebalance_amount,
+                         'rebalance_amount': rebalance_amount,
                          'loan_to_value_ratio': ltv,
                          'liquidation_amount': liquidation_amount,
                          'emergency_rebalance': emergency_rebalances,
