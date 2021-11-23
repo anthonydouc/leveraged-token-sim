@@ -13,20 +13,20 @@ pool_liquidity = {'pool_x_i': 30160053 , 'pool_y_i':659723}
 token_price = 30160053 / 659723
 
 # Maximum percentage slippage 
-max_slippage = 2
+max_slippage = 3
 
 # Time between each trade
 trade_delay = 1
 
 # Effectiveness of arbitrageurs in restoring AMM prices to their pre
 # trade state. 
-arb_effectiveness = 0.9
+arb_effectiveness = 80
 
 # Time required for arb_effectiveness to be reached. 
 arb_time = 1
 
 # Percentage fee charged by exchange
-trading_fee = 0.3 / 100
+trading_fee = 0.3
 
 
 # Trade example #1 -  UST to LUNA
@@ -56,4 +56,4 @@ vol_received = execute_trades(trade_vol, max_trade, max_slippage, trade_delay,
                               arb_effectiveness, arb_time, pool_liquidity, token_price,
                               trading_fee)
 
-print(f'Offered {trade_vol} LUNA, received {vol_received} LUNA')
+print(f'Offered {trade_vol} USD worth of LUNA, received {vol_received} LUNA')

@@ -34,60 +34,101 @@ def sim_swap(delta_x, delta_y, pool_x, pool_y, perc_fee):
 def sim_trades(delta_x, max_slippage, time_delay, arb_effectiveness, arb_time, 
                pool_x_i, pool_y_i, perc_fee):
     """
-    Occurs within each simulation timestep. E.g. if timestep is 1 hour,
-    this considers n sub timesteps based on time delay.
-    
-    pool_x_i and pool_y_i could be arrays or floats / ints.
+    Simulates executing a series of trades, while accounting for AMM
+    conditions throughout the time of swapping.
 
     Parameters
     ----------
-    max_slippage : TYPE
-        DESCRIPTION.
-    time_delay : TYPE
-        DESCRIPTION.
-    arb_effectiveness : TYPE
-        DESCRIPTION.
-    arb_time : TYPE
-        DESCRIPTION.
-    pool_x_i : TYPE
-        DESCRIPTION.
-    pool_y_i : TYPE
-        DESCRIPTION.
+    delta_x : float
+        Amount of token x to swap for token y. If negative, it assumes that
+        the equivalent value of token y is traded for token x.
+    max_slippage : float
+        Maximum acceptable slippage for accepting each trade.
+    time_delay : float
+        Time between each trade.
+    arb_effectiveness : float
+        Maximum effectiveness of arbitrage bots in restoring AMM price to its 
+        pre trade level.
+    arb_time : float
+        Time taken for arbitrage bots to restore AMM price by
+        arb_effectiveness.
+    pool_x_i : float
+        Initial token balance for pool token x.
+    pool_y_i : float
+        Initial token balance for pool token y.
 
     Returns
     -------
+    trade_actual : float
+        USD value of tokens received for executing each trade.
 
     """
-    # lets assume this is based on AMM price. TODO: THIS IS OK FOR SPREAD, BUT WE NEED TO REVERT BACK.
-    delta_y = - delta_x / (pool_x_i / pool_y_i)
+        
+    # number of timesteps with duration `time_delay` within each hour
+    nt = (60 // time_delay) * 60
     
-    nt = len(delta_x)
+    # target number of trades to execute
+    nte = len(delta_x)
     
+    # number of trades executed
+    ne = 0
+
+    # USD value of trade to execute at each timestep
+    delta_xt = np.concatenate([delta_x, np.zeros(nt - nte)])
+    
+    # Number of tokens being asked (at AMM price)
+    delta_yt = - delta_xt / (pool_x_i / pool_y_i)
+    
+    # bool balances at each timestep
     pool_x = np.zeros(nt) + pool_x_i
     
     pool_y = np.zeros(nt) + pool_y_i
     
+    # trade volume executed at each timestep
     trade_actual = np.zeros(nt)
-    
+            
     for t in range(nt):
-        received, perc_spread = sim_swap(delta_x[t], delta_y[t], 
-                                         pool_x[t], pool_y[t], perc_fee)
-
-        if perc_spread < max_slippage:
-    
-            arb_offset = (1 - arb_effectiveness / 100) * max(1, (time_delay / arb_time))
-            
-            pool_x[t:] += delta_x[t]  * arb_offset
         
-            pool_y[t:] += delta_y[t]  * arb_offset
-
-            trade_actual[t] = received
+        if ne < nte:
+            received, perc_spread = sim_swap(delta_xt[t], delta_yt[t], 
+                                             pool_x[t], pool_y[t], perc_fee)
             
+            if perc_spread < max_slippage:
+
+                arb_offset = (1 - arb_effectiveness / 100) * max(1, (time_delay / arb_time))
+                                
+                pool_x[t:] += delta_xt[t] * arb_offset
+            
+                pool_y[t:] += delta_yt[t] * arb_offset
+    
+                trade_actual[t] = received
+                
+                ne += 1
+            else:
+                # trade is rejected due to slippage exceeding acceptable level.
+                # trades are shifted by a length of time equal to time_delay
+                # arbitrage continues if time delay is smaller than arb time.
+                
+               # arb_offset = (1 - arb_effectiveness / 100) * max(1, (time_delay / arb_time))
+            
+               # pool_x[t:] += delta_xt[t] * arb_offset
+            
+               # pool_y[t:] += delta_yt[t] * arb_offset
+
+                delta_xt[t+1:] = delta_xt[t:nt-1]
+                
+                delta_yt[t+1:] = delta_yt[t:nt-1]
+            
+        
+    # convert back to USD
+    #print(trade_actual)
+    trade_actual[delta_xt > 0] *= pool_x[delta_xt > 0] / pool_y[delta_xt > 0]
+    
     return trade_actual
 
 def execute_trades(trade_vol, max_trade, max_slippage, trade_delay,
                    arb_effectiveness, arb_time, pool_liquidity, token_price,
-                   trading_fee):
+                   swap_fee):
     """
     Attempts to execute trades based on estimated trade slippage.
     Trades are simulated and occur within 1 simulation timestep:
@@ -112,7 +153,7 @@ def execute_trades(trade_vol, max_trade, max_slippage, trade_delay,
         DESCRIPTION.
 
     """
-
+   # print(trade_vol)
     # swap direction:
     # if +ve: borrowing more UST and swapping UST for token
     # if -ve: borrowing less UST and swapping token for UST
@@ -136,12 +177,12 @@ def execute_trades(trade_vol, max_trade, max_slippage, trade_delay,
                                  arb_effectiveness, arb_time,
                                  pool_liquidity['pool_x_i'],
                                  pool_liquidity['pool_y_i'],
-                                 trading_fee)
+                                 swap_fee)
     
     # value of tokens recevied based on oracle price
     if direction > 0:
-        received = token_price * received_tokens
+        received = received_tokens#token_price * received_tokens
     else:
-        received = 1 * received_tokens #TODO: get UST prices?
+        received = 1 * received_tokens
 
     return direction * received.sum()

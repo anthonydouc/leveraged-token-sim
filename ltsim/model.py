@@ -36,9 +36,9 @@ def leveraged_token_model(price_data, pool_liquidity_data,
                           target_leverage, min_leverage,
                           max_leverage, congestion_time,
                           rebalance_frequency, recentering_speed,
-                          trade_params_periodic, trade_params_emergancy,
+                          trade_params_periodic, trade_params_emergency,
                           borrow_rate, liq_thresh, liq_premium,
-                          n_tokens_start, trading_fee, arb_params):
+                          n_tokens_start, swap_fee, arb_params):
     """
     
 
@@ -62,7 +62,7 @@ def leveraged_token_model(price_data, pool_liquidity_data,
         DESCRIPTION.
     trade_params_periodic : TYPE
         DESCRIPTION.
-    trade_params_emergancy : TYPE
+    trade_params_emergency : TYPE
         DESCRIPTION.
     borrow_rate : TYPE
         DESCRIPTION.
@@ -72,7 +72,7 @@ def leveraged_token_model(price_data, pool_liquidity_data,
         DESCRIPTION.
     n_tokens_start : TYPE
         DESCRIPTION.
-    trading_fee : TYPE
+    swap_fee : TYPE
         DESCRIPTION.
     arb_params : TYPE
         DESCRIPTION.
@@ -132,18 +132,18 @@ def leveraged_token_model(price_data, pool_liquidity_data,
     for t in range(nt):
         
         if borrowed[t] > 0:
-            ltv[t] = n_underlying[t] * price[t] / borrowed[t]
+            ltv[t] = borrowed[t] / (n_underlying[t] * price[t])
         else:
             ltv[t] = np.nan
         
         # liquidation occurs when asset_value / borrowed < liquidation_threshold
-        if ltv[t] <= liq_thresh:
+        if ltv[t] >= liq_thresh / 100:
             
             # balance before liquidation
             balance_before = n_underlying[t] * price[t] - borrowed[t]
             
             # premium amount claimed by liquidators 
-            liquidation_amount[t] = balance_before * liq_premium
+            liquidation_amount[t] = balance_before * liq_premium / 100
             
             # remaining balance after liquidation
             balance_after = balance_before - liquidation_amount[t]
@@ -170,7 +170,7 @@ def leveraged_token_model(price_data, pool_liquidity_data,
         else:
             exceedance_time[t] = 0
 
-        emergancy_rebal_allowed = (outside_lev_range
+        emergency_rebal_allowed = (outside_lev_range
                                    & (exceedance_time[t] >= congestion_time))
 
         periodic_rebal_allowed = is_periodic_rebal_allowed(t, last_rebalanced,
@@ -178,7 +178,8 @@ def leveraged_token_model(price_data, pool_liquidity_data,
         
         rebal_allowed = ((leverage[t] != target_leverage)
                          and (n_tokens[t] > 0)
-                         and (emergancy_rebal_allowed or periodic_rebal_allowed))
+                         and (n_underlying[t] > 1e-3)
+                         and (emergency_rebal_allowed or periodic_rebal_allowed))
 
         if rebal_allowed:
 
@@ -190,8 +191,8 @@ def leveraged_token_model(price_data, pool_liquidity_data,
             delta_borrow = (rebalance_leverage * (current_value - borrowed[t])
                             - current_value)
 
-            if emergancy_rebal_allowed:
-                trade_params = trade_params_emergancy
+            if emergency_rebal_allowed:
+                trade_params = trade_params_emergency
                 emergency_rebalances[t] = 1
 
             elif periodic_rebal_allowed:
@@ -209,7 +210,7 @@ def leveraged_token_model(price_data, pool_liquidity_data,
                                                  *arb_params,
                                                  pool_liquidity,
                                                  price[t],
-                                                 trading_fee)
+                                                 swap_fee)
 
         # Adjust debt and underlying token positions based on rebalancing
         # amount
@@ -219,6 +220,7 @@ def leveraged_token_model(price_data, pool_liquidity_data,
 
         # Debt interest accural
         borrowed[t] *= (1 + borrow_rate / 100 / 365 / 24)
+
 
     # hourly value of the leveraged token
     lt_value = (n_underlying * price - borrowed)
@@ -259,10 +261,10 @@ def leveraged_token_model(price_data, pool_liquidity_data,
                          'drawdown_underlying': drawdown_underlying,
                          'drawdown_leveraged': drawdown_lt,
                          'n_tokens_per_lt': n_underlying,
-                         'value_per_lt': n_underlying * price,
+                         'underlying_value_per_lt': n_underlying * price,
                          'debt_per_lt': borrowed,
                          'leverage': leverage,
-                         'total_value': n_tokens * n_underlying * price,
+                         'total_underlying_value': n_tokens * n_underlying * price,
                          'total_debt': n_tokens * borrowed,
                          'daily_return': daily_return,
                          'daily_return_perc': daily_return_perc,
