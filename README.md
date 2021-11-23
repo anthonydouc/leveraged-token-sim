@@ -21,7 +21,7 @@ Example scripts for running the leveraged token simulation, trade and swap simul
 
 # Model parameter definitions
 
-See the docstring for the `leveraged_token_model.py` module.
+See the [docstring for the `leveraged_token_model.py` module](https://github.com/anthonydouc/leveraged-token-sim/blob/22e663c830d35bd75fd1c1568e314f5f890fca75/ltsim/model.py#L35).
 
 # Model output definitions
 Running the model produces a dataframe containing a number of variables, each defined over an hourly timestep.
