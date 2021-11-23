@@ -64,7 +64,10 @@ def read_prices_from_api():
 
     price_data['DATE'] = pd.to_datetime(price_data['DATE'])
     
-    return price_data
+    price_data['PRICE'] = (price_data.groupby('SYMBOL')['PRICE']
+                               .fillna(method='ffill').fillna(method='bfill'))
+    
+    return price_data[['DATE','SYMBOL','PRICE']]
 
 
 def get_token_prices(price_data, token, min_date=None, max_date=None):
@@ -133,10 +136,10 @@ def read_liquidity_from_api():
                  .unstack(1)['BALANCE'].reset_index())
     
     pool_data['pool_x_i'] = (pool_data.groupby('POOL_NAME')['pool_x_i']
-                             .fillna(method='ffill'))
+                             .fillna(method='ffill').fillna(method='bfill'))
     
     pool_data['pool_y_i'] = (pool_data.groupby('POOL_NAME')['pool_y_i']
-                             .fillna(method='ffill'))
+                             .fillna(method='ffill').fillna(method='bfill'))
 
     return pool_data
 
@@ -152,7 +155,7 @@ def get_pool_liquidity(pool_data, pool, min_date=None, max_date=None):
     
     if max_date is not None:
         pool_data = pool_data[pool_data['DATE'] <= max_date]
-
+        
     return pool_data[['DATE', 'pool_x_i','pool_y_i']]
 
 
@@ -172,8 +175,12 @@ def get_model_data(all_token_prices, all_pool_liquidity, token, min_date=None,
 
     token_prices = get_token_prices(all_token_prices, token, min_date, max_date)
 
-    min_date, max_date = all_token_prices['DATE'].min(), all_token_prices['DATE'].max()
+    min_date, max_date = token_prices['DATE'].min(), token_prices['DATE'].max()
 
     pool_liquidity = get_pool_liquidity(all_pool_liquidity, pool, min_date, max_date)
     
+    min_date, max_date = pool_liquidity['DATE'].min(), pool_liquidity['DATE'].max()
+
+    token_prices = get_token_prices(all_token_prices, token, min_date, max_date)
+
     return token_prices, pool_liquidity

@@ -29,13 +29,13 @@ def calc_rebal_lev(leverage, target_leverage, recentering_speed,
 
     return rebalance_leverage
 
-def is_periodic_rebal_allowed(t, last_rebalanced, rebalance_frequency):
-    return t >= last_rebalanced + rebalance_frequency
+def is_periodic_rebal_allowed(t, last_rebalanced, rebalance_interval):
+    return t >= last_rebalanced + rebalance_interval
 
 def leveraged_token_model(price_data, pool_liquidity_data,
                           target_leverage, min_leverage,
                           max_leverage, congestion_time,
-                          rebalance_frequency, recentering_speed,
+                          rebalance_interval, recentering_speed,
                           trade_params_periodic, trade_params_emergency,
                           borrow_rate, liq_thresh, liq_premium,
                           n_tokens_start, swap_fee, arb_params):
@@ -56,7 +56,7 @@ def leveraged_token_model(price_data, pool_liquidity_data,
         DESCRIPTION.
     congestion_time : TYPE
         DESCRIPTION.
-    rebalance_frequency : TYPE
+    rebalance_interval : TYPE
         DESCRIPTION.
     recentering_speed : TYPE
         DESCRIPTION.
@@ -83,9 +83,11 @@ def leveraged_token_model(price_data, pool_liquidity_data,
         DESCRIPTION.
 
     """
-    price = price_data['AVG_PRICE'].values
+    price = price_data['PRICE'].values
 
     dates = price_data['DATE'].values
+    
+    hours = price_data['DATE'].dt.hour.values
 
     nt = len(price)
 
@@ -174,7 +176,7 @@ def leveraged_token_model(price_data, pool_liquidity_data,
                                    & (exceedance_time[t] >= congestion_time))
 
         periodic_rebal_allowed = is_periodic_rebal_allowed(t, last_rebalanced,
-                                                           rebalance_frequency)
+                                                           rebalance_interval)
         
         rebal_allowed = ((leverage[t] != target_leverage)
                          and (n_tokens[t] > 0)
@@ -209,7 +211,6 @@ def leveraged_token_model(price_data, pool_liquidity_data,
                                                  *trade_params,
                                                  *arb_params,
                                                  pool_liquidity,
-                                                 price[t],
                                                  swap_fee)
 
         # Adjust debt and underlying token positions based on rebalancing
@@ -220,7 +221,6 @@ def leveraged_token_model(price_data, pool_liquidity_data,
 
         # Debt interest accural
         borrowed[t] *= (1 + borrow_rate / 100 / 365 / 24)
-
 
     # hourly value of the leveraged token
     lt_value = (n_underlying * price - borrowed)
@@ -236,10 +236,10 @@ def leveraged_token_model(price_data, pool_liquidity_data,
     max_leverage_arr = np.zeros(nt) + max_leverage
 
     # hour on hour change in leveraged token value 
-    daily_return = np.zeros(len(lt_value))
+    hourly_return = np.zeros(len(lt_value))
     
     # percentage daily return
-    daily_return_perc = np.zeros(len(lt_value))
+    hourly_return_perc = np.zeros(len(lt_value))
 
     # cummulative change in leveraged token value
     cummulative_return = np.zeros(len(lt_value))
@@ -247,35 +247,36 @@ def leveraged_token_model(price_data, pool_liquidity_data,
     # percentage cummulative change
     cummulative_return_perc = np.zeros(len(lt_value))
 
-    daily_return[1:] = (lt_value[1:] - lt_value[:-1])
+    hourly_return[1:] = (lt_value[1:] - lt_value[:-1])
     
-    daily_return_perc[1:] = (lt_value[1:] - lt_value[:-1]) / lt_value[:-1]
+    hourly_return_perc[1:] = (lt_value[1:] - lt_value[:-1]) / lt_value[:-1]
 
     cummulative_return[1:] = (lt_value[1:] - lt_value[0])
     
     cummulative_return_perc[1:] = (lt_value[1:] - lt_value[0]) / lt_value[0]
 
-    data = pd.DataFrame({'date': dates,
-                         'underlying_token_price': price,
-                         'leveraged_token_value': lt_value,
-                         'drawdown_underlying': drawdown_underlying,
-                         'drawdown_leveraged': drawdown_lt,
-                         'n_tokens_per_lt': n_underlying,
-                         'underlying_value_per_lt': n_underlying * price,
-                         'debt_per_lt': borrowed,
-                         'leverage': leverage,
-                         'total_underlying_value': n_tokens * n_underlying * price,
-                         'total_debt': n_tokens * borrowed,
-                         'daily_return': daily_return,
-                         'daily_return_perc': daily_return_perc,
-                         'cummulative_return': cummulative_return,
-                         'cummulative_return_perc': cummulative_return_perc,
-                         'target_rebalance_amount': target_rebalance_amount,
-                         'rebalance_amount': rebalance_amount,
-                         'loan_to_value_ratio': ltv,
-                         'liquidation_amount': liquidation_amount,
-                         'emergency_rebalance': emergency_rebalances,
-                         'periodic_rebalance': periodic_rebalances,
-                         'min_leverage_arr': min_leverage_arr,
-                         'max_leverage_arr': max_leverage_arr})
-    return data
+    res = pd.DataFrame({'date': dates,
+                        'hour': hours,
+                        'underlying_token_price': price,
+                        'leveraged_token_value': lt_value,
+                        'drawdown_underlying': drawdown_underlying,
+                        'drawdown_leveraged': drawdown_lt,
+                        'n_tokens_per_lt': n_underlying,
+                        'underlying_value_per_lt': n_underlying * price,
+                        'debt_per_lt': borrowed,
+                        'leverage': leverage,
+                        'total_underlying_value': n_tokens * n_underlying * price,
+                        'total_debt': n_tokens * borrowed,
+                        'hourly_return': hourly_return,
+                        'hourly_return_perc': hourly_return_perc,
+                        'cummulative_return': cummulative_return,
+                        'cummulative_return_perc': cummulative_return_perc,
+                        'target_rebalance_amount': target_rebalance_amount,
+                        'rebalance_amount': rebalance_amount,
+                        'loan_to_value_ratio': ltv,
+                        'liquidation_amount': liquidation_amount,
+                        'emergency_rebalance': emergency_rebalances,
+                        'periodic_rebalance': periodic_rebalances,
+                        'min_leverage_arr': min_leverage_arr,
+                        'max_leverage_arr': max_leverage_arr})
+    return res
