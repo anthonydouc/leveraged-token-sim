@@ -99,7 +99,7 @@ def read_liquidity_from_api():
     
     pool_data = read_data_from_api(url, 'pool_balances')
 
-    pool_data['DATE'] = pd.to_datetime(pool_data['DATE'])
+    pool_data['DATE'] = pd.to_datetime(pool_data['DATE'], utc=True)
         
     pools = list(pool_data['POOL_NAME'].unique())
     
