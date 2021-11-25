@@ -149,26 +149,26 @@ def leveraged_token_model(price_data, pool_liquidity_data,
         else:
             ltv[t] = np.nan
         
-        # liquidation occurs when asset_value / borrowed < liquidation_threshold
+        # liquidation logic
         if ltv[t] >= liq_thresh / 100:
             
             # balance before liquidation
-            balance_before = n_underlying[t] * price[t] - borrowed[t]
+            collateral_before = n_underlying[t] * price[t] - borrowed[t]
             
             # premium amount claimed by liquidators 
-            liquidation_amount[t] = balance_before * liq_premium / 100
+            liquidation_amount[t] = collateral_before * liq_premium / 100
             
             # remaining balance after liquidation
-            balance_after = balance_before - liquidation_amount[t]
+            collateral_after = collateral_before - liquidation_amount[t]
             
-            if balance_after <= 0:
+            if collateral_after <= 0:
                 # all issued leveraged tokens are now worth 0 and removed
                 n_underlying[t] = 0
                 borrowed[t] = 0
             else:
                 # % of position value is liquidated and lost.
                 # remaining is used to reconstruct tokens based on target leverage
-                n_underlying[t:] = balance_after / price[t]
+                n_underlying[t:] = collateral_after / price[t]
                 borrowed[t:] = 0
 
         current_value = n_underlying[t] * price[t]
@@ -195,9 +195,10 @@ def leveraged_token_model(price_data, pool_liquidity_data,
                          and (emergency_rebal_allowed or periodic_rebal_allowed))
 
         if rebal_allowed:
-
+            # leverage target for rebalancing
             rebalance_leverage = calc_rebal_lev(leverage[t], target_leverage,
                                                 recentering_speed)
+            
             # required change in borrowing for rebalancing
             delta_borrow = (rebalance_leverage * (current_value - borrowed[t])
                             - current_value)

@@ -2,12 +2,12 @@
 from ltsim import sim_swap
 
 """
-This script runs example swap simulations based on real trades,
-and TerraSwap Pool conditions at the time of trade.
+Individual example swap simulations based on real trades,
+and recent TerraSwap Pool balances (may differ to those at the time of trade).
 """
 
 # Terra Swap fee proportion
-perc_fee = 0.3 / 100
+perc_fee = 0.3
     
 # LUNA trades
 pool_x, pool_y = 30123576.064800,  691626.375367
@@ -19,7 +19,8 @@ delta_x = 940
 
 delta_y = delta_x * (pool_y / pool_x)
 
-res_lu_1 = sim_swap(delta_x, delta_y, pool_x, pool_y, perc_fee)
+# result is a tupple containing received, fee, spread, perc_spread
+res_lu_1 = sim_swap(delta_x, delta_y, pool_x, pool_y, perc_fee, return_usd=False)
 
 # MIR trades
 pool_x, pool_y = 30307424.731656,  10982636.155309
@@ -31,7 +32,7 @@ delta_x = 14000
 
 delta_y = delta_x * (pool_y / pool_x)
 
-res_mir_1 = sim_swap(delta_x, delta_y, pool_x, pool_y, perc_fee)
+res_mir_1 = sim_swap(delta_x, delta_y, pool_x, pool_y, perc_fee, return_usd=False)
 
 # ANC trades
 pool_x, pool_y = 146440951.902936,  46345672.171992
@@ -43,4 +44,4 @@ delta_x = 2161.613117
 
 delta_y = delta_x * (pool_y / pool_x)
 
-res_anc_1 = sim_swap(delta_x, delta_y, pool_x, pool_y, perc_fee)
+res_anc_1 = sim_swap(delta_x, delta_y, pool_x, pool_y, perc_fee, return_usd=False)
