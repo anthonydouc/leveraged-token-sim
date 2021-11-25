@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*- 
 import datetime
 
-from ltsim.data import get_all_model_data, get_model_data
-                  
+import pandas as pd
+                 
 from ltsim.model import leveraged_token_model
 
 # number of leveraged tokens on issue (constant over time)
@@ -47,25 +47,28 @@ swap_fee = 0
 # arbitrage effectiveness, time to reach effectiveness
 arb_params = (99, 1)
 
+# price at each timestep
+prices = [100, 105, 110, 115, 120, 125]
 
-# read data from FLipside API. This only requires specifying the token we 
-# want to use, and optionally a UTC date range for the data to use.
+# dates for each timestep - these can be omitted if not required
+dates = [datetime.datetime(2021, 1, d) for d in range(1,len(prices)+1)]
 
-token = 'LUNA' # can be one of LUNA/MIR/ANC
+# price dataframe
+price_data = pd.DataFrame({'DATE':dates,
+                           'PRICE':prices})
 
-min_date = datetime.datetime(2021, 4, 1, tzinfo=datetime.timezone.utc)
+# token pool balances for the Terra Swap (or constant product like DEX) 
 
-max_date = datetime.datetime(2021, 6, 1, tzinfo=datetime.timezone.utc)
+# UST balance
+pool_x = [1e9] * len(prices)
 
-# read in hourly price and pool balance data for all tokens
-all_price_data, all_pool_liquidity = get_all_model_data()
+# token balance
+pool_y = [px/price for price, px in zip(prices, pool_x) ]
 
-# read in price and pool balance data for the specified token and dates
-price_data, pool_liquidity = get_model_data(all_price_data, 
-                                            all_pool_liquidity,
-                                            token,
-                                            min_date,
-                                            max_date) 
+# pool balance dataframe
+pool_liquidity = pd.DataFrame({'DATE':dates,
+                               'pool_x_i':pool_x,
+                               'pool_y_i':pool_y})
 
 # model results are provided as a dataframe.
 res = leveraged_token_model(price_data,

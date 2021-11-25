@@ -14,18 +14,14 @@ def calc_drawdown(data):
     
     cummax_data = data.cummax()
     
-    return (data - cummax_data) / data
+    return (data - cummax_data) / cummax_data
 
-def calc_n_tokens_linear(n_int, n_grad, nt):
-    return np.linspace(0, nt-1, nt) * n_grad + n_int
+def calc_rebal_lev(leverage, target_leverage, recentering_speed):
 
-def calc_rebal_lev(leverage, target_leverage, recentering_speed,
-                   max_leverage, min_leverage):
-
-    rebalance_leverage = ((1 - recentering_speed / 100) * target_leverage
-                              + (recentering_speed / 100) * leverage)
-
-    rebalance_leverage = max(min_leverage, min(max_leverage, rebalance_leverage))
+    if leverage > target_leverage:
+        rebalance_leverage = max(target_leverage, leverage - recentering_speed)
+    else:
+        rebalance_leverage = min(target_leverage, leverage + recentering_speed)
 
     return rebalance_leverage
 
@@ -38,62 +34,71 @@ def leveraged_token_model(price_data, pool_liquidity_data,
                           rebalance_interval, recentering_speed,
                           trade_params_periodic, trade_params_emergency,
                           borrow_rate, liq_thresh, liq_premium,
-                          n_tokens_start, swap_fee, arb_params):
+                          n_tokens_issued, swap_fee, arb_params):
     """
-    
+    Simulates the performance of leveraged tokens managed through a combination
+    of periodic and emergency leverage rebalancing rules.
 
     Parameters
     ----------
-    price_data : TYPE
-        DESCRIPTION.
-    pool_liquidity_data : TYPE
-        DESCRIPTION.
-    target_leverage : TYPE
-        DESCRIPTION.
-    min_leverage : TYPE
-        DESCRIPTION.
-    max_leverage : TYPE
-        DESCRIPTION.
-    congestion_time : TYPE
-        DESCRIPTION.
-    rebalance_interval : TYPE
-        DESCRIPTION.
-    recentering_speed : TYPE
-        DESCRIPTION.
-    trade_params_periodic : TYPE
-        DESCRIPTION.
-    trade_params_emergency : TYPE
-        DESCRIPTION.
-    borrow_rate : TYPE
-        DESCRIPTION.
-    liq_thresh : TYPE
-        DESCRIPTION.
-    liq_premium : TYPE
-        DESCRIPTION.
-    n_tokens_start : TYPE
-        DESCRIPTION.
-    swap_fee : TYPE
-        DESCRIPTION.
-    arb_params : TYPE
-        DESCRIPTION.
+    price_data : pd.DataFrame
+        Ordered token prices at each timestep.
+    pool_liquidity_data : pd.DataFrame
+        Ordered UST and token pool balances at each timestep.
+    target_leverage : float
+        Target leverage for the leveraged token to maintain.
+    min_leverage : float
+        Minimum allowable leverage before emergency rebalance is triggered.
+    max_leverage : float
+        Maximum allowable leverage before emergency rebalance is triggered.
+    congestion_time : float
+        Minimum number of timesteps before emergency rebalance is executed.
+    rebalance_interval : int
+        Number of timesteps between periodic rebalances.
+    recentering_speed : float
+        Absolute change in leverage for each rebalance.
+    trade_params_periodic : tuple
+        A tuple with the parameters (max_trade_vol, max_slippage, trade_delay)
+        for periodic rebalancing.
+    trade_params_emergency : tuple
+        A tuple with the parameters (max_trade_vol, max_slippage, trade_delay)
+        for emergency rebalancing.
+    borrow_rate : float
+        Annual percentage borrowing rate.
+    liq_thresh : float
+        Loan to value threshold before position is liquidated.
+    liq_premium : float
+        Percentage of collateral that is forfeit as premium to liquidators.
+    n_tokens_issued : int
+        Number of leveraged tokens on issue (constant over time).
+    swap_fee : float
+        Percentage fee charged by the DEX for swaps.
+    arb_params : tuple
+        A tuple containing the params (arb_effectiveness, arb_time).
 
     Returns
     -------
-    data : TYPE
-        DESCRIPTION.
+    data : pd.DataFrame
+        Dataframe containing key model variables.
 
     """
     price = price_data['PRICE'].values
 
-    dates = price_data['DATE'].values
+    try:
+        dates = price_data['DATE'].values
+    except:
+        dates = np.arange(0, len(price))
     
-    hours = price_data['DATE'].dt.hour.values
+    try:
+        hours = price_data['DATE'].dt.hour.values
+    except:
+        hours = np.zeros(len(price))
 
     nt = len(price)
 
     # total (net) number of leveraged tokens issued over time
     # equal to expected cummulative (subscriptions - redemptions)
-    n_tokens = calc_n_tokens_linear(n_tokens_start, 0, nt)
+    n_tokens = np.zeros(nt) + n_tokens_issued
 
     # number of underlying tokens per leveraged token
     n_underlying = np.zeros(nt)
@@ -104,11 +109,17 @@ def leveraged_token_model(price_data, pool_liquidity_data,
     # actual leverage ratio per leveraged token
     leverage = np.zeros(nt)
 
-    # target rebalance amount ($) per leveraged token
+    # target rebalance amount ($) for all issued leveraged tokens
     target_rebalance_amount = np.zeros(nt)
     
-    # actual rebalance amount ($) per leveraged token
+    # actual rebalance amount ($) for all issued leveraged tokens
     rebalance_amount = np.zeros(nt)
+    
+    # swap fees paid ($) for all issued leveraged tokens
+    swap_fees = np.zeros(nt)
+    
+    # spread value ($) for all issued leveraged tokens
+    swap_spread = np.zeros(nt)
     
     # boolean variable tracking if emergency rebalance was executed
     emergency_rebalances = np.zeros(nt)
@@ -186,9 +197,7 @@ def leveraged_token_model(price_data, pool_liquidity_data,
         if rebal_allowed:
 
             rebalance_leverage = calc_rebal_lev(leverage[t], target_leverage,
-                                                recentering_speed, max_leverage,
-                                                min_leverage)
-
+                                                recentering_speed)
             # required change in borrowing for rebalancing
             delta_borrow = (rebalance_leverage * (current_value - borrowed[t])
                             - current_value)
@@ -202,16 +211,21 @@ def leveraged_token_model(price_data, pool_liquidity_data,
                 periodic_rebalances[t] = 1
                 last_rebalanced = t
 
-            # TODO: maybe change delta borrow to tokens as opposed to USD.
             pool_liquidity = pool_liquidity_data.iloc[t][['pool_x_i','pool_y_i']].to_dict()
 
             target_rebalance_amount[t] = n_tokens[t] * delta_borrow
             
-            rebalance_amount[t] = execute_trades(n_tokens[t] * delta_borrow,
-                                                 *trade_params,
-                                                 *arb_params,
-                                                 pool_liquidity,
-                                                 swap_fee)
+            trade = execute_trades(n_tokens[t] * delta_borrow,
+                                   *trade_params,
+                                   *arb_params,
+                                   pool_liquidity,
+                                   swap_fee)
+
+            rebalance_amount[t] = trade[0]
+            
+            swap_fees[t] = trade[1]
+            
+            swap_spread[t] = trade[2]
 
         # Adjust debt and underlying token positions based on rebalancing
         # amount
@@ -273,6 +287,8 @@ def leveraged_token_model(price_data, pool_liquidity_data,
                         'cummulative_return_perc': cummulative_return_perc,
                         'target_rebalance_amount': target_rebalance_amount,
                         'rebalance_amount': rebalance_amount,
+                        'swap_fees' : swap_fees,
+                        'swap_spread': swap_spread,
                         'loan_to_value_ratio': ltv,
                         'liquidation_amount': n_tokens * liquidation_amount,
                         'emergency_rebalance': emergency_rebalances,

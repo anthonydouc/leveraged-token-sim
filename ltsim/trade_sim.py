@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 
-def sim_swap(delta_x, delta_y, pool_x, pool_y, swap_fee):
+def sim_swap(delta_x, delta_y, pool_x, pool_y, swap_fee, return_usd=True):
     """
-    Computes the expected receive, spread and commision amounts for 
-    Terra Swap style pools (constant product). Based on 
+    Computes the expected receive, spread and commision amounts for
+    Terra Swap style pools (constant product). Based on
     https://docs.terraswap.io/docs/introduction/mechanism/
-    
-    
+
+
     Parameters
     ----------
     delta_x : float
@@ -20,18 +20,32 @@ def sim_swap(delta_x, delta_y, pool_x, pool_y, swap_fee):
         Balance (number of tokens) for token y.
     swap_fee : float
         Percentage fee charged by AMM for swap execution.
-
+    convert_to_usd : bool
+        Whether or not to convert token values to USD.
     """
+
     if delta_x > 0 :
         ask = abs(delta_y)
         out = delta_x * pool_y / (delta_x + pool_x)
     elif delta_x < 0 :
         ask = abs(delta_x)
         out = delta_y * pool_x / (delta_y + pool_y)
-    received  = out  * (1 - swap_fee / 100)
-    return received, 100 * (ask - out) / ask
-    
-def sim_trades(delta_x, max_slippage, time_delay, arb_effectiveness, arb_time, 
+
+    if return_usd and delta_x > 0:
+        ask *= pool_x / pool_y
+        out *= pool_x / pool_y
+
+    fee = out * swap_fee / 100
+
+    spread = ask - out
+
+    perc_spread = (ask - out) / ask * 100
+
+    received = out - fee
+
+    return received, fee, spread, perc_spread
+
+def sim_trades(delta_x, max_slippage, time_delay, arb_effectiveness, arb_time,
                pool_x_i, pool_y_i, swap_fee):
     """
     Simulates executing a series of trades, while accounting for AMM
@@ -47,7 +61,7 @@ def sim_trades(delta_x, max_slippage, time_delay, arb_effectiveness, arb_time,
     time_delay : float
         Time between each trade.
     arb_effectiveness : float
-        Maximum effectiveness of arbitrage bots in restoring AMM price to its 
+        Maximum effectiveness of arbitrage bots in restoring AMM price to its
         pre trade level.
     arb_time : float
         Time taken for arbitrage bots to restore AMM price by
@@ -65,14 +79,14 @@ def sim_trades(delta_x, max_slippage, time_delay, arb_effectiveness, arb_time,
         USD value of tokens received for executing each trade.
 
     """
-        
-    # number of timesteps with duration `time_delay` within each hour
+
+    # number of timesteps with duration time_delay within each hour
     nt = int((60 * 60) // time_delay)
-    
+
     # not all trades may able to be executed due to time delay alone
     if len(delta_x) > nt:
         delta_x = delta_x[0:nt]
-        
+
     # target number of trades to execute
     nte = len(delta_x)
 
@@ -81,34 +95,44 @@ def sim_trades(delta_x, max_slippage, time_delay, arb_effectiveness, arb_time,
 
     # USD value of trade to execute at each timestep
     delta_xt = np.concatenate([delta_x, np.zeros(nt - nte)])
-    
+
     # Number of tokens being asked (at AMM price)
     delta_yt = - delta_xt / (pool_x_i / pool_y_i)
-    
+
     # bool balances at each timestep
     pool_x = np.zeros(nt) + pool_x_i
-    
+
     pool_y = np.zeros(nt) + pool_y_i
-    
+
     # trade volume executed at each timestep
     trade_actual = np.zeros(nt)
-            
+
+    # spread for all trades at each timestep
+    swap_spread = np.zeros(nt)
+
+    # swap fees paid for all trades at each timestep
+    swap_fees = np.zeros(nt)
+
     for t in range(nt):
-        
-        if ne < nte:
-            received, perc_spread = sim_swap(delta_xt[t], delta_yt[t], 
-                                             pool_x[t], pool_y[t], swap_fee)
-            
+
+        while ne < nte:
+            received, fee, spread, perc_spread = sim_swap(delta_xt[t], delta_yt[t],
+                                                          pool_x[t], pool_y[t], swap_fee)
+
             if perc_spread < max_slippage:
 
                 arb_offset = (1 - arb_effectiveness / 100) * max(1, (time_delay / arb_time))
-                                
+
                 pool_x[t:] += delta_xt[t] * arb_offset
-            
+
                 pool_y[t:] += delta_yt[t] * arb_offset
-    
+
                 trade_actual[t] = received
-                
+
+                swap_spread[t] = spread
+
+                swap_fees[t] = fee
+
                 ne += 1
             else:
                 # trade is rejected due to slippage exceeding acceptable level.
@@ -117,23 +141,18 @@ def sim_trades(delta_x, max_slippage, time_delay, arb_effectiveness, arb_time,
                 # than arb time.
 
                 delta_xt[t+1:] = delta_xt[t:nt-1]
-                
+
                 delta_yt[t+1:] = delta_yt[t:nt-1]
-        
-    # Convert back to USD using AMM price.
-    # This is to avoid potential errors with pool balance data for
-    # pricing purposes.
-    trade_actual[delta_xt > 0] *= pool_x[delta_xt > 0] / pool_y[delta_xt > 0]
-    
-    return trade_actual
+
+    return trade_actual, swap_spread, swap_fees
 
 def execute_trades(trade_vol, max_trade, max_slippage, trade_delay,
                    arb_effectiveness, arb_time, pool_liquidity, swap_fee):
     """
-    Divides trade_vol into a number of equally sized trades for execution. 
+    Divides trade_vol into a number of equally sized trades for execution.
     Actual swap volumes reflect market conditions including spread and
     arbitrage.
-    
+
 
     Parameters
     ----------
@@ -147,7 +166,7 @@ def execute_trades(trade_vol, max_trade, max_slippage, trade_delay,
     time_delay : float
         Time between each trade.
     arb_effectiveness : float
-        Maximum effectiveness of arbitrage bots in restoring AMM price to its 
+        Maximum effectiveness of arbitrage bots in restoring AMM price to its
         pre trade level.
     arb_time : float
         Time taken for arbitrage bots to restore AMM price by
@@ -163,13 +182,15 @@ def execute_trades(trade_vol, max_trade, max_slippage, trade_delay,
         total value of tokens received for all trades.
 
     """
-
+    if trade_vol == 0:
+        return 0, 0, 0
+    
     # swap direction:
     # if +ve: borrowing more UST and swapping UST for token
     # if -ve: borrowing less UST and swapping token for UST
     direction = abs(trade_vol) / trade_vol
 
-    # number of max_volume trades 
+    # number of max_volume trades
     n = int(abs(trade_vol) // max_trade)
 
     # remainder volume (assume to be last trade)
@@ -183,10 +204,10 @@ def execute_trades(trade_vol, max_trade, max_slippage, trade_delay,
 
     # array of tokens recevied from swapping. Not all trades may execute
     # due to maximum slippage, or not enough time due to trade delay.
-    received = sim_trades(trades, max_slippage, trade_delay, 
-                          arb_effectiveness, arb_time,
-                          pool_liquidity['pool_x_i'],
-                          pool_liquidity['pool_y_i'],
-                          swap_fee)
-    
-    return direction * received.sum()
+    received, spread, fees = sim_trades(trades, max_slippage, trade_delay,
+                                        arb_effectiveness, arb_time,
+                                        pool_liquidity['pool_x_i'],
+                                        pool_liquidity['pool_y_i'],
+                                        swap_fee)
+
+    return direction * received.sum(), direction * spread.sum(), direction * fees.sum()
