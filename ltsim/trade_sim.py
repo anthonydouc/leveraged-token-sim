@@ -109,6 +109,9 @@ def sim_trades(delta_x, max_slippage, time_delay, arb_effectiveness, arb_time,
 
     # spread for all trades at each timestep
     swap_spread = np.zeros(nt)
+    
+    # maximum percentage spread across all trades at each timestep
+    swap_perc_spread = np.zeros(nt)
 
     # swap fees paid for all trades at each timestep
     swap_fees = np.zeros(nt)
@@ -124,47 +127,53 @@ def sim_trades(delta_x, max_slippage, time_delay, arb_effectiveness, arb_time,
 
     narb_left = 0
     
-    for t in range(nt):
-
-        if ne < nte:
-            received, fee, spread, perc_spread = sim_swap(delta_xt[t], delta_yt[t],
-                                                          pool_x[t], pool_y[t], swap_fee)
-            
-            #TODO: add in something here to either arb against last price 
-            # within hour - or arb against historical price
-            # IF historical then delta is between pool_x[t] and pool_x_i
-            if perc_spread < max_slippage:
-                pool_x[t:] += delta_xt[t] * (1 - arb_offset[0])
-
-                pool_y[t:] += delta_yt[t] * (1 - arb_offset[0])
-                
-                narb_left = narb - 1
-
-                trade_actual[t] = received
-
-                swap_spread[t] = spread
-
-                swap_fees[t] = fee
-
-                ne += 1
-            else:
-                # trade is rejected due to slippage exceeding acceptable level.
-                # trades are shifted by a length of time equal to time_delay
-                
-                if narb_left > 0:
-                    # arbitrage continues, if time delay is smaller
-                    # than arb time.
-                    pool_x[t:] -= delta_xt[t-1] * arb_offset[narb-narb_left]
+    t = 0
     
-                    pool_y[t:] -= delta_yt[t-1] * arb_offset[narb-narb_left]
-                    
-                    narb_left -= 1
+    while (ne < nte) and (t < nt):
+        swap = sim_swap(delta_xt[t], delta_yt[t],
+                         pool_x[t], pool_y[t], swap_fee)
 
-                delta_xt[t+1:] = delta_xt[t:nt-1]
+        perc_spread = swap[3]
+        
+        swap_perc_spread[t] = perc_spread 
+        
+        if (t == 0) and (perc_spread > max_slippage):
+            break
+        
+        if perc_spread < max_slippage:
+            pool_x[t:] += delta_xt[t] * (1 - arb_offset[0])
 
-                delta_yt[t+1:] = delta_yt[t:nt-1]
+            pool_y[t:] += delta_yt[t] * (1 - arb_offset[0])
+            
+            narb_left = narb - 1
 
-    return trade_actual, swap_fees, swap_spread
+            trade_actual[t] = swap[0]
+
+            swap_spread[t] = swap[1]
+
+            swap_fees[t] = swap[2]
+
+            ne += 1
+        else:
+            # trade is rejected due to slippage exceeding acceptable level.
+            # trades are shifted by a length of time equal to time_delay
+            
+            if narb_left > 0:
+                # arbitrage continues, if time delay is smaller
+                # than arb time.
+                pool_x[t:] -= delta_xt[t-1] * arb_offset[narb-narb_left]
+
+                pool_y[t:] -= delta_yt[t-1] * arb_offset[narb-narb_left]
+                
+                narb_left -= 1
+
+            delta_xt[t+1:] = delta_xt[t:nt-1]
+
+            delta_yt[t+1:] = delta_yt[t:nt-1]
+        
+        t += 1
+
+    return trade_actual, swap_fees, swap_spread, swap_perc_spread
 
 def execute_trades(trade_vol, max_trade, max_slippage, trade_delay,
                    arb_effectiveness, arb_time, pool_liquidity, swap_fee):
@@ -203,7 +212,7 @@ def execute_trades(trade_vol, max_trade, max_slippage, trade_delay,
 
     """
     if trade_vol == 0:
-        return 0, 0, 0
+        return 0, 0, 0, 0
     
     # swap direction:
     # if +ve: borrowing more UST and swapping UST for token
@@ -224,10 +233,10 @@ def execute_trades(trade_vol, max_trade, max_slippage, trade_delay,
 
     # array of tokens recevied from swapping. Not all trades may execute
     # due to maximum slippage, or not enough time due to trade delay.
-    received, fees, spread = sim_trades(trades, max_slippage, trade_delay,
-                                        arb_effectiveness, arb_time,
-                                        pool_liquidity['pool_x_i'],
-                                        pool_liquidity['pool_y_i'],
-                                        swap_fee)
-
-    return direction * received.sum(), fees.sum(), spread.sum()
+    received, fees, spread, perc_spread = sim_trades(trades, max_slippage, trade_delay,
+                                                     arb_effectiveness, arb_time,
+                                                     pool_liquidity['pool_x_i'],
+                                                     pool_liquidity['pool_y_i'],
+                                                     swap_fee)
+    
+    return direction * received.sum(), fees.sum(), spread.sum(), perc_spread.max()

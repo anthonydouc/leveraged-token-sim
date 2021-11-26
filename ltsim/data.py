@@ -14,7 +14,7 @@ token_pools = {'LUNA': 'LUNA-UST',
                'MIR': 'MIR-UST',
                'ANC': 'ANC-UST'}
     
-def read_data_from_api(api_url, data_file='data'):
+def read_data_from_api(api_url, data_file='data', proccess_fn=None):
 
     today = datetime.datetime.utcnow().strftime('%m-%d')
 
@@ -36,6 +36,8 @@ def read_data_from_api(api_url, data_file='data'):
             data = pd.read_csv(os.path.join(data_dir, f'{data_file}_{today}.csv'))
         else:
             data = pd.read_json(api_url)
+            if proccess_fn is not None:
+                data = proccess_fn(data)
             data.to_csv(os.path.join(data_dir, f'{data_file}_{today}.csv'))
             # delete existing data
             if data_existing is not None:
@@ -86,21 +88,8 @@ def get_token_prices(price_data, token, min_date=None, max_date=None):
     
     return price_data
 
-
-def read_liquidity_from_api():
-    """
-    Reads in daily token balances from a Flipside endpoint and converts
-    to hourly data (assuming constant balance within each day).
-    """
-    ssl._create_default_https_context = ssl._create_unverified_context
+def process_liquididty_data(pool_data):
     
-    url = ('https://api.flipsidecrypto.com/api/v2/queries/'
-           'd4dcdfbe-f25c-4617-a572-e914f1aa21e5/data/latest')
-    
-    pool_data = read_data_from_api(url, 'pool_balances')
-
-    pool_data['DATE'] = pd.to_datetime(pool_data['DATE'], utc=True)
-        
     pools = list(pool_data['POOL_NAME'].unique())
     
     data_list = []
@@ -140,6 +129,23 @@ def read_liquidity_from_api():
     
     pool_data['pool_y_i'] = (pool_data.groupby('POOL_NAME')['pool_y_i']
                              .fillna(method='ffill').fillna(method='bfill'))
+    
+    return pool_data
+
+def read_liquidity_from_api():
+    """
+    Reads in daily token balances from a Flipside endpoint and converts
+    to hourly data (assuming constant balance within each day).
+    """
+    ssl._create_default_https_context = ssl._create_unverified_context
+    
+    url = ('https://api.flipsidecrypto.com/api/v2/queries/'
+           'd4dcdfbe-f25c-4617-a572-e914f1aa21e5/data/latest')
+    
+    pool_data = read_data_from_api(url, 'pool_balances', process_liquididty_data)
+
+    pool_data['DATE'] = pd.to_datetime(pool_data['DATE'], utc=True)
+        
 
     return pool_data
 

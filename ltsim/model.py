@@ -121,6 +121,9 @@ def leveraged_token_model(price_data, pool_liquidity_data,
     # spread value ($) for all issued leveraged tokens
     swap_spread = np.zeros(nt)
     
+    # highest percentage spread (%) at each timestep 
+    max_swap_perc_spread = np.zeros(nt)
+    
     # boolean variable tracking if emergency rebalance was executed
     emergency_rebalances = np.zeros(nt)
     
@@ -227,6 +230,8 @@ def leveraged_token_model(price_data, pool_liquidity_data,
             swap_fees[t] = trade[1]
             
             swap_spread[t] = trade[2]
+            
+            max_swap_perc_spread[t] = trade[3]
 
         # Adjust debt and underlying token positions based on rebalancing
         # amount
@@ -269,6 +274,9 @@ def leveraged_token_model(price_data, pool_liquidity_data,
     cummulative_return[1:] = (lt_value[1:] - lt_value[0])
     
     cummulative_return_perc[1:] = (lt_value[1:] - lt_value[0]) / lt_value[0]
+    
+    rebalance_shortfall = (abs(target_rebalance_amount)
+                           - (abs(rebalance_amount) + swap_fees + swap_spread))
 
     res = pd.DataFrame({'date': dates,
                         'hour': hours,
@@ -290,6 +298,8 @@ def leveraged_token_model(price_data, pool_liquidity_data,
                         'rebalance_amount': rebalance_amount,
                         'swap_fees' : swap_fees,
                         'swap_spread': swap_spread,
+                        'max_swap_perc_spread': max_swap_perc_spread,
+                        'rebalance_shortfall': rebalance_shortfall,
                         'loan_to_value_ratio': ltv,
                         'liquidation_amount': n_tokens * liquidation_amount,
                         'emergency_rebalance': emergency_rebalances,
