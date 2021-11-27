@@ -1,15 +1,12 @@
-name: web-apps
+name: ltsim
 channels:
   - defaults
 dependencies:
   - python=3.9
-  - bokeh=2.3.3
   - numpy
   - pandas
   - spyder=5.0.0
   - xlrd
   - openpyxl
-  - statsmodels=0.12.2
-  - networkx
   - decorator=5.0.9
   - conda-forge::pybase64

@@ -137,7 +137,8 @@ def sim_trades(delta_x, max_slippage, time_delay, arb_effectiveness, arb_time,
         
         swap_perc_spread[t] = perc_spread 
         
-        if (t == 0) and (perc_spread > max_slippage):
+        # slippage will always exceed max slippage & all trades will fail
+        if ((t == 0) or (narb_left == 0)) and (perc_spread > max_slippage):
             break
         
         if perc_spread < max_slippage:
