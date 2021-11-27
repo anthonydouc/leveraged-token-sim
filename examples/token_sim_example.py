@@ -9,13 +9,13 @@ from ltsim.model import leveraged_token_model
 n_tokens_issued = 1
 
 # target leverage for the leveraged token to maintain
-target_leverage = 3
+target_leverage = 2
 
 # annual percentage borrowing rate
 borrow_rate = 40
 
 # Loan to value threshold before position is liquidated
-liq_thresh = 99
+liq_thresh = 90
 
 # percentage of collateral that is forfeit as premium to liquidators
 liq_premium = 20
@@ -30,10 +30,10 @@ max_leverage = 3.5
 congestion_time = 2
 
 # number of timesteps between periodic rebalances
-rebalance_interval = 1
+rebalance_interval = 2
 
 # absolute change in leverage for each rebalance
-recentering_speed = 0
+recentering_speed = 0.1
 
 # max trade vol, max slippage, trade delay for periodic rebalancing
 trade_params_periodic = (1e9, 4, 1)
@@ -41,8 +41,8 @@ trade_params_periodic = (1e9, 4, 1)
 # max trade vol, max slippage, trade delay for emergency rebalancing
 trade_params_emergency = (1e9, 4, 1)
 
-# fee charged on swaps
-swap_fee = 0
+# percentage fee charged on swaps
+swap_fee = 0.3
 
 # arbitrage effectiveness, time to reach effectiveness
 arb_params = (99, 1)

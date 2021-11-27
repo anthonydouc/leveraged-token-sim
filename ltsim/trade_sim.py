@@ -11,7 +11,8 @@ def sim_swap(delta_x, delta_y, pool_x, pool_y, swap_fee, return_usd=True):
     Parameters
     ----------
     delta_x : float
-        Amount of token x being offered.
+        Amount of token x being offered. If positive swapping x for y. If
+        negative swapping y for x.
     delta_y : float
         Amount of token y being offered.
     pool_x : float
@@ -39,10 +40,10 @@ def sim_swap(delta_x, delta_y, pool_x, pool_y, swap_fee, return_usd=True):
 
     spread = ask - out
 
-    perc_spread = (ask - out) / ask * 100
+    perc_spread = spread / ask * 100
 
     received = out - fee
-
+    
     return received, fee, spread, perc_spread
 
 def sim_trades(delta_x, max_slippage, time_delay, arb_effectiveness, arb_time,
@@ -97,9 +98,9 @@ def sim_trades(delta_x, max_slippage, time_delay, arb_effectiveness, arb_time,
     delta_xt = np.concatenate([delta_x, np.zeros(nt - nte)])
 
     # Number of tokens being asked (at AMM price)
-    delta_yt = - delta_xt / (pool_x_i / pool_y_i)
+    delta_yt = np.zeros(nt)
 
-    # bool balances at each timestep
+    # UST (x) and token (y) bool balances before each trade
     pool_x = np.zeros(nt) + pool_x_i
 
     pool_y = np.zeros(nt) + pool_y_i
@@ -115,27 +116,26 @@ def sim_trades(delta_x, max_slippage, time_delay, arb_effectiveness, arb_time,
 
     # swap fees paid for all trades at each timestep
     swap_fees = np.zeros(nt)
-
-    # duration to complete arb
-    nlarb = arb_time % time_delay + arb_time // time_delay
     
     # no. timesteps to complete arb
-    narb = int(np.ceil(nlarb))
+    narb = int(np.ceil(arb_time/time_delay))
     
     # arb effectiveness in each timestep
-    arb_offset = np.linspace(1, nlarb, narb) * time_delay / arb_time * arb_effectiveness / 100
+    arb_offset = np.minimum(1, np.linspace(1, narb, narb) * time_delay / arb_time) * arb_effectiveness / 100
 
     narb_left = 0
     
     t = 0
     
     while (ne < nte) and (t < nt):
-        swap = sim_swap(delta_xt[t], delta_yt[t],
-                         pool_x[t], pool_y[t], swap_fee)
+        
+        delta_yt[t] = - delta_xt[t] / (pool_x[t] / pool_y[t])
+        
+        swap = sim_swap(delta_xt[t], delta_yt[t], pool_x[t], pool_y[t], swap_fee)
 
         perc_spread = swap[3]
         
-        swap_perc_spread[t] = perc_spread 
+        swap_perc_spread[t] = perc_spread
         
         # slippage will always exceed max slippage & all trades will fail
         if ((t == 0) or (narb_left == 0)) and (perc_spread > max_slippage):
@@ -150,9 +150,9 @@ def sim_trades(delta_x, max_slippage, time_delay, arb_effectiveness, arb_time,
 
             trade_actual[t] = swap[0]
 
-            swap_spread[t] = swap[1]
-
-            swap_fees[t] = swap[2]
+            swap_fees[t] = swap[1]
+            
+            swap_spread[t] = swap[2]
 
             ne += 1
         else:
@@ -232,7 +232,7 @@ def execute_trades(trade_vol, max_trade, max_slippage, trade_delay,
     else:
         trades = direction * np.array([max_trade] * n)
 
-    # array of tokens recevied from swapping. Not all trades may execute
+    # Value of swaps executed. Not all trades may execute
     # due to maximum slippage, or not enough time due to trade delay.
     received, fees, spread, perc_spread = sim_trades(trades, max_slippage, trade_delay,
                                                      arb_effectiveness, arb_time,

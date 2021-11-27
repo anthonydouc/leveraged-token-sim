@@ -201,7 +201,7 @@ def leveraged_token_model(price_data, pool_liquidity_data,
             # leverage target for rebalancing
             rebalance_leverage = calc_rebal_lev(leverage[t], target_leverage,
                                                 recentering_speed)
-            
+
             # required change in borrowing for rebalancing
             delta_borrow = (rebalance_leverage * (current_value - borrowed[t])
                             - current_value)
@@ -209,7 +209,6 @@ def leveraged_token_model(price_data, pool_liquidity_data,
             if emergency_rebal_allowed:
                 trade_params = trade_params_emergency
                 emergency_rebalances[t] = 1
-
             elif periodic_rebal_allowed:
                 trade_params = trade_params_periodic
                 periodic_rebalances[t] = 1

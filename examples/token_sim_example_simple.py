@@ -33,7 +33,7 @@ congestion_time = 2
 rebalance_interval = 1
 
 # absolute change in leverage for each rebalance
-recentering_speed = 0
+recentering_speed = 0.01
 
 # max trade vol, max slippage, trade delay for periodic rebalancing
 trade_params_periodic = (1e9, 4, 1)
@@ -41,8 +41,8 @@ trade_params_periodic = (1e9, 4, 1)
 # max trade vol, max slippage, trade delay for emergency rebalancing
 trade_params_emergency = (1e9, 4, 1)
 
-# fee charged on swaps
-swap_fee = 0
+# percentage fee charged on swaps
+swap_fee = 0.3
 
 # arbitrage effectiveness, time to reach effectiveness
 arb_params = (99, 1)
@@ -63,7 +63,7 @@ price_data = pd.DataFrame({'DATE':dates,
 pool_x = [1e9] * len(prices)
 
 # token balance
-pool_y = [px/price for price, px in zip(prices, pool_x) ]
+pool_y = [px / price for price, px in zip(prices, pool_x) ]
 
 # pool balance dataframe
 pool_liquidity = pd.DataFrame({'DATE':dates,
