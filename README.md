@@ -4,8 +4,8 @@ A python package for simulating the performance and operation of leveraged crypt
 # Setup
 
 - Ensure you have the required packages installed. This can be done through either:
-  - Ensuring your environment packages align with those listed in requirements.txt
-  - Or installing and running an anaconda environment using the environment.yaml file. See https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html for instructions on how to setup and use anaconda environments.
+  - Install python version `3.9.0` and ensure python packages align with those listed in requirements.txt
+  - Installing and run an anaconda environment using the environment.yaml file. See https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html for instructions on how to setup and use anaconda environments.
 
 # Running
 
