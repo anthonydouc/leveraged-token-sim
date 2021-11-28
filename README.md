@@ -13,15 +13,15 @@ The python model is structured as a python packaged named `ltsim`. The Leveraged
 
 ## Data
 The simulation can be run with either user supplied data, or default data. The default data is sourced from Flipside API through the following data module functions 
-- [`get_all_model_data`](https://github.com/anthonydouc/leveraged-token-sim/blob/dc52e6763acd80abd63f6264f42f4604863cd121/ltsim/data.py#L159)
-- [`get_model_data`](https://github.com/anthonydouc/leveraged-token-sim/blob/dc52e6763acd80abd63f6264f42f4604863cd121/ltsim/data.py#L168)
+- [`get_all_model_data`](https://github.com/anthonydouc/leveraged-token-sim/blob/e41fab370c3d0750f349a6d23f05c8b0b172c624/ltsim/data.py#L168)
+- [`get_model_data`](https://github.com/anthonydouc/leveraged-token-sim/blob/e41fab370c3d0750f349a6d23f05c8b0b172c624/ltsim/data.py#L177)
 
 ## Examples
 Example scripts for running the leveraged token simulation, trade and swap simulations and reading data are provided in the `examples` folder.
 
 # Model parameter definitions
 
-See the [docstring for the `leveraged_token_model` module](https://github.com/anthonydouc/leveraged-token-sim/blob/22e663c830d35bd75fd1c1568e314f5f890fca75/ltsim/model.py#L35).
+See the [docstring for the `leveraged_token_model` module](https://github.com/anthonydouc/leveraged-token-sim/blob/e41fab370c3d0750f349a6d23f05c8b0b172c624/ltsim/model.py#L38).
 
 # Model output definitions
 Running the model produces a dataframe containing a number of variables, each defined over an hourly timestep.
