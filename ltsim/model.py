@@ -143,7 +143,7 @@ def leveraged_token_model(price_data, pool_liquidity_data,
 
     borrowed[0:] = price[0] * (target_leverage - 1)
 
-    last_rebalanced = - 100
+    last_rebalanced = 0
 
     for t in range(nt):
         

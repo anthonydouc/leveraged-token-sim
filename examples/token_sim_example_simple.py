@@ -21,16 +21,16 @@ liq_thresh = 99
 liq_premium = 20
 
 # minimum allowable leverage before emergency rebalance is triggered
-min_leverage = 2.4
+min_leverage = 1.4
 
 # maximum allowable leverage before emergency rebalance is triggered
-max_leverage = 3.5
+max_leverage = 4
 
 # minimum number of timesteps before emergency rebalance is executed
 congestion_time = 2
 
 # number of timesteps between periodic rebalances
-rebalance_interval = 1
+rebalance_interval = 2
 
 # absolute change in leverage for each rebalance
 recentering_speed = 0.01
