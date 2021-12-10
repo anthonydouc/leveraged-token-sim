@@ -12,7 +12,7 @@ n_tokens_issued = 1
 target_leverage = 3
 
 # annual percentage borrowing rate
-borrow_rate = 40
+borrow_rate = 0
 
 # Loan to value threshold before position is liquidated
 liq_thresh = 99
@@ -21,19 +21,22 @@ liq_thresh = 99
 liq_premium = 20
 
 # minimum allowable leverage before emergency rebalance is triggered
-min_leverage = 1.4
+min_leverage = 2.99
 
 # maximum allowable leverage before emergency rebalance is triggered
-max_leverage = 4
+max_leverage = 3.01
 
 # minimum number of timesteps before emergency rebalance is executed
-congestion_time = 2
+congestion_time = 1
 
 # number of timesteps between periodic rebalances
-rebalance_interval = 2
+rebalance_interval = 0
 
-# absolute change in leverage for each rebalance
-recentering_speed = 0.01
+# absolute change in leverage for each periodic rebalance
+recentering_speed_periodic = 1
+
+# absolute change in leverage for each emergency rebalance
+recentering_speed_emergency = 1
 
 # max trade vol, max slippage, trade delay for periodic rebalancing
 trade_params_periodic = (1e9, 4, 1)
@@ -42,10 +45,10 @@ trade_params_periodic = (1e9, 4, 1)
 trade_params_emergency = (1e9, 4, 1)
 
 # percentage fee charged on swaps
-swap_fee = 0.3
+swap_fee = 0
 
 # arbitrage effectiveness, time to reach effectiveness
-arb_params = (99, 1)
+arb_params = (100, 1)
 
 # price at each timestep
 prices = [100, 105, 110, 115, 120, 125]
@@ -78,7 +81,8 @@ res = leveraged_token_model(price_data,
                             max_leverage,
                             congestion_time, 
                             rebalance_interval,
-                            recentering_speed,
+                            recentering_speed_periodic,
+                            recentering_speed_emergency,
                             trade_params_periodic,
                             trade_params_emergency,
                             borrow_rate,

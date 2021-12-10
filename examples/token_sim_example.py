@@ -32,8 +32,11 @@ congestion_time = 2
 # number of timesteps between periodic rebalances
 rebalance_interval = 2
 
-# absolute change in leverage for each rebalance
-recentering_speed = 0.1
+# absolute change in leverage for each periodic rebalance
+recentering_speed_periodic = 0.1
+
+# absolute change in leverage for each emergency rebalance
+recentering_speed_emergency = 0.2
 
 # max trade vol, max slippage, trade delay for periodic rebalancing
 trade_params_periodic = (1e9, 4, 1)
@@ -75,7 +78,8 @@ res = leveraged_token_model(price_data,
                             max_leverage,
                             congestion_time, 
                             rebalance_interval,
-                            recentering_speed,
+                            recentering_speed_periodic,
+                            recentering_speed_emergency,
                             trade_params_periodic,
                             trade_params_emergency,
                             borrow_rate,

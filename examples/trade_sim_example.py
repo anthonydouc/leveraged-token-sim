@@ -39,8 +39,8 @@ vol_received = execute_trades(trade_vol, max_trade, max_slippage, trade_delay,
                               arb_effectiveness, arb_time, pool_liquidity,
                               trading_fee)
 
-print(f'Offered {trade_vol} UST, received {vol_received[0]:.1f} UST, '
-      f'paid {vol_received[1]:.1f} in fees and lost {vol_received[2]:.1f} due to slippage')
+print(f'Offered {vol_received[1]:.1f} UST, received {vol_received[0]:.1f} UST, '
+      f'paid {vol_received[2]:.1f} in fees and lost {vol_received[3]:.1f} due to slippage')
 
 
 # Trade example #2 - LUNA to UST
@@ -55,5 +55,5 @@ vol_received = execute_trades(trade_vol, max_trade, max_slippage, trade_delay,
                               arb_effectiveness, arb_time, pool_liquidity,
                               trading_fee)
 
-print(f'Offered {abs(trade_vol)} UST worth of LUNA, received {-vol_received[0]:.1f} UST, '
-      f'paid {vol_received[1]:.1f} in fees and lost {vol_received[2]:.1f} due to slippage')
+print(f'Offered {-vol_received[1]:.1f} UST worth of LUNA, received {-vol_received[0]:.1f} UST, '
+      f'paid {vol_received[2]:.1f} in fees and lost {vol_received[3]:.1f} due to slippage')
