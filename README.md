@@ -28,29 +28,30 @@ Running the model produces a dataframe containing a number of variables, each de
 
 | Output DataFrame field | Unit | Description |
 | ------------- |------------- | ------------- |
-| underlying_token_price  | *USD/token* | The value per token of the underlying asset. |
-| leveraged_token_price  | *USD/token* | The value of the leveraged token. |
-| drawdown_underlying  | *%* | The percentage decrease in underlying token price relative to the last all time high price. |
-| drawdown_leveraged | *%* | The percentage decrease in leverage token value relative to the last all time high value. |
-| n_tokens_per_lt | *no. tokens* | The number of underlying asset tokens per leveraged token.  |
-| underlying_value_per_lt | *USD/token* | The value of all underlying asset tokens per leveraged token.  |
-| debt_per_lt | *USD/token* | The amount borrowed per leveraged token.  |
-| leverage | *unitless/ratio* | The ratio of the underlying value for all asset tokens and debt.  |
-| total_underlying_value | *USD* | The value for all underlying assets for all issued leveraged tokens. |
+| underlying_token_price  | *USD/token* | The value per token of the underlying asset.|
+| leveraged_token_price  | *USD/token* | The value of the leveraged token.|
+| drawdown_underlying  | *%* | The percentage decrease in underlying token price relative to the last all time high price.|
+| drawdown_leveraged | *%* | The percentage decrease in leverage token value relative to the last all time high value.|
+| n_tokens_per_lt | *no. tokens* | The number of underlying asset tokens per leveraged token.|
+| underlying_value_per_lt | *USD/token* | The value of all underlying asset tokens per leveraged token.|
+| debt_per_lt | *USD/token* | The amount borrowed per leveraged token.|
+| leverage | *unitless/ratio* | The ratio of the underlying value for all asset tokens and debt.|
+| total_underlying_value | *USD* | The value for all underlying assets for all issued leveraged tokens.|
 | total_debt | *USD* | The amount borrowed for all issued leveraged tokens. |
-| hourly_return | *USD* | The hour on hour change in leveraged token value |
-| hourly_return_perc | *%* | The hour on hour percentage change in leveraged token value |
-| cummulative_return | *USD* | The total change in leveraged token value since its creation |
-| cummulative_return_perc | *%* | The total percentage change in leveraged token value since its creation |
-| target_rebalance_amount | *USD* | The exact value of swaps required to rebalance the leverage ratio |
-| rebalance_amount | *USD* | The actual value of swaps executed to rebalance the leverage ratio. This may be less due to fees, slippage, and inability to execute all trades |
-| swap_fees | *USD* | The value of fees paid for all executed swaps |
-| swap_spread | *USD* | The value lost due to slippage for all executed swaps |
-| max_swap_spread_perc | *USD* | The maximum potential percentage slippage |
-| rebalance_shortfall | *USD* | The value of swaps that were not executed |
-| loan_to_value_ratio | *unitless/ratio* | The ratio of debt to underlying asset value |
-| liquidation_amount | *USD* | The total value of collateral forfeit to liquidators |
-| emergency_rebalance | *boolean* | Boolean variable indicating whether or not emergency rebalance was undertaken |
-| periodic_rebalance | *boolean* | Boolean variable indicating whether or not periodic rebalance was undertaken |
+| hourly_return | *USD* | The hour on hour change in leveraged token value.|
+| hourly_return_perc | *%* | The hour on hour percentage change in leveraged token value.|
+| cummulative_return | *USD* | The total change in leveraged token value since its creation.|
+| cummulative_return_perc | *%* | The total percentage change in leveraged token value since its creation.|
+| target_rebalance_amount | *USD* | The exact value of swaps required to rebalance the leverage ratio.|
+| offered_amount | *USD* | The value offered for swaps succesfuly executed to rebalance the leverage ratio.|
+| rebalance_amount | *USD* | The value received for swaps executed to rebalance the leverage ratio. This may be less due to fees, slippage, and inability to execute all trades.|
+| swap_fees | *USD* | The value of fees paid for all executed swaps.|
+| swap_spread | *USD* | The value lost due to slippage for all executed swaps.|
+| max_swap_spread_perc | *USD* | The maximum potential percentage slippage.|
+| rebalance_shortfall | *USD* | The value of swaps that were not executed.|
+| loan_to_value_ratio | *unitless/ratio* | The ratio of debt to underlying asset value.|
+| liquidation_amount | *USD* | The total value of collateral forfeit to liquidators.|
+| emergency_rebalance | *boolean* | Boolean variable indicating whether or not emergency rebalance was undertaken.|
+| periodic_rebalance | *boolean* | Boolean variable indicating whether or not periodic rebalance was undertaken.|
 
 

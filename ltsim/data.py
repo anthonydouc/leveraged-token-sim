@@ -10,6 +10,8 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 data_dir = os.path.join(dir_path, 'data')
 
+pathlib.Path(data_dir).mkdir(parents=True, exist_ok=True)
+
 token_pools = {'LUNA': 'LUNA-UST',
                'MIR': 'MIR-UST',
                'ANC': 'ANC-UST'}
@@ -17,10 +19,6 @@ token_pools = {'LUNA': 'LUNA-UST',
 def read_data_from_api(api_url, data_file='data', proccess_fn=None):
 
     today = datetime.datetime.utcnow().strftime('%m-%d')
-
-    data_dir = os.path.join(dir_path, 'data')
-
-    pathlib.Path(data_dir).mkdir(parents=True, exist_ok=True)
 
     files = os.listdir(data_dir)
 
@@ -51,6 +49,33 @@ def read_data_from_api(api_url, data_file='data', proccess_fn=None):
 
     return data
 
+def process_price_data(price_data):
+    
+    tokens = list(price_data['SYMBOL'].unique())
+                
+    data_list = []
+    
+    for token in tokens:
+        data = price_data[price_data['SYMBOL'] == token]
+            
+        min_date, max_date = data['DATE'].min(), data['DATE'].max()
+        
+        dates = pd.date_range(min_date, max_date, freq='h')
+    
+        idx = pd.Index(dates, name='DATE')
+    
+        data = data.set_index('DATE').reindex(idx).reset_index()
+        
+        data['SYMBOL'] = token
+        
+        data_list.append(data)
+          
+    price_data = pd.concat(data_list)
+    
+    price_data['PRICE'] = (price_data.groupby('SYMBOL')['PRICE']
+                           .fillna(method='ffill').fillna(method='bfill'))
+    
+    return price_data
 
 def read_prices_from_api():
     """
@@ -62,15 +87,11 @@ def read_prices_from_api():
     url = ('https://api.flipsidecrypto.com/api/v2/queries/'
            '2aca3d2a-fe73-4726-90f1-26e89076617e/data/latest')
     
-    price_data = read_data_from_api(url, 'token_prices')
+    price_data = read_data_from_api(url, 'token_prices', process_price_data)
 
     price_data['DATE'] = pd.to_datetime(price_data['DATE'])
-    
-    price_data['PRICE'] = (price_data.groupby('SYMBOL')['PRICE']
-                               .fillna(method='ffill').fillna(method='bfill'))
-    
-    return price_data[['DATE','SYMBOL','PRICE']]
 
+    return price_data[['DATE','SYMBOL','PRICE']]
 
 def get_token_prices(price_data, token, min_date=None, max_date=None):
     """
