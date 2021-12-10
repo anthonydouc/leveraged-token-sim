@@ -208,7 +208,7 @@ def execute_trades(trade_vol, max_trade, max_slippage, trade_delay,
 
     """
     if trade_vol == 0:
-        return 0, 0, 0, 0
+        return 0, 0, 0, 0, 0
 
     # swap direction:
     # if +ve: borrowing more UST and swapping UST for token
