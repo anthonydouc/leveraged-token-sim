@@ -89,7 +89,7 @@ def read_prices_from_api():
     
     price_data = read_data_from_api(url, 'token_prices', process_price_data)
 
-    price_data['DATE'] = pd.to_datetime(price_data['DATE'])
+    price_data['DATE'] = pd.to_datetime(price_data['DATE'], utc=True)
 
     return price_data[['DATE','SYMBOL','PRICE']]
 
